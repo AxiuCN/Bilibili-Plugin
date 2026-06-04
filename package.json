@@ -1,0 +1,14 @@
+{
+  "name": "Bilibili-Plugin",
+  "version": "1.0.0",
+  "description": "B站综合功能插件，支持UP主激励计划抢奖励、直播推送等功能",
+  "author": "阿修Axiu",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AxiuCN/Bilibili-Plugin.git"
+  },
+  "dependencies": {
+    "yaml": "^2.4.5"
+  }
+}

@@ -1,0 +1,22 @@
+# ==============================================================
+# Bilibili-Plugin 默认配置（开发者维护，用户勿改）
+# 变量占位符将被锅巴后台或 generateConfig 替换
+# ==============================================================
+
+# B站账号登录（apps/login.js）
+login:
+  # 扫码登录轮询超时（秒）
+  pollTimeout: ${login_pollTimeout}
+
+# B站激励计划（apps/incentive.js）
+incentive:
+  # ---------- 领取设置 ----------
+  claim:
+    # 并发领取线程数（同时发送请求的 worker 数量）
+    threadCount: ${incentive_claim_threadCount}
+    # 单个 worker 最大重试次数
+    maxRetry: ${incentive_claim_maxRetry}
+    # 重试间隔（秒）
+    retryInterval: ${incentive_claim_retryInterval}
+    # 单次请求超时（秒）
+    timeout: ${incentive_claim_timeout}
