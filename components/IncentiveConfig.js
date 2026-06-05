@@ -74,7 +74,7 @@ function isWhitelisted(qq) {
 /**
  * 个人配置文件名后缀
  */
-const USER_CFG_EXT = '.xxx'
+const USER_CFG_EXT = '.yaml'
 
 /**
  * 获取指定 QQ 的配置文件路径
@@ -83,14 +83,6 @@ const USER_CFG_EXT = '.xxx'
  */
 function userCfgPath(qq) {
   return path.join(userCfgDir, `${qq}${USER_CFG_EXT}`)
-}
-
-/**
- * 模板文件路径
- * @returns {string}
- */
-function examplePath() {
-  return path.join(userCfgDir, `qq${USER_CFG_EXT}.example`)
 }
 
 /**
@@ -145,8 +137,9 @@ function createDefaultUserConfig(qq, notifyGroup = 0) {
 function listUserConfigs() {
   try {
     if (!fs.existsSync(userCfgDir)) return []
+    const exclude = ['whitelist', 'qq']
     return fs.readdirSync(userCfgDir)
-      .filter(f => f.endsWith(USER_CFG_EXT) && !f.startsWith('qq.'))
+      .filter(f => f.endsWith(USER_CFG_EXT) && !exclude.includes(f.replace(USER_CFG_EXT, '')))
       .map(f => f.replace(USER_CFG_EXT, ''))
   } catch {
     return []
