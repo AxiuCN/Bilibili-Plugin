@@ -149,7 +149,7 @@ export function supportGuoba() {
                 componentProps: { min: 0, placeholder: '0=不通知' } },
               ...Array.from({ length: MAX_SLOTS }, (_, i) => ({
                 field: `link${i + 1}`,
-                label: `槽位${i + 1}`,
+                label: `兑换链接${i + 1}`,
                 component: 'Input',
                 componentProps: { placeholder: '活动链接（含 task_id）' },
               })),
