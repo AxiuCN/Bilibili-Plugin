@@ -1,4 +1,6 @@
 import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
+import { onCronTick } from '../components/IncentiveScheduler.js'
+import { getPluginConfig } from '../components/config.js'
 
 export class BiliIncentive extends plugin {
   constructor() {
@@ -17,6 +19,22 @@ export class BiliIncentive extends plugin {
         { reg: /^#激励白名单$/i, fnc: 'cmdWhitelist' },
       ],
     })
+
+    const config = getPluginConfig()
+    const claimTime = config?.incentive?.claimTime || '01:00'
+    const [hour, minute] = claimTime.split(':').map(Number)
+    const hh = Math.min(23, Math.max(0, isNaN(hour) ? 1 : hour))
+    const mm = Math.min(59, Math.max(0, isNaN(minute) ? 0 : minute))
+    this.task = {
+      name: 'biliIncentiveSchedule',
+      fnc: () => this.tick(),
+      cron: `${0} ${mm} ${hh} * * ?`,
+      log: false,
+    }
+  }
+
+  async tick() {
+    await onCronTick()
   }
 
   // ========== 配置创建 ==========
