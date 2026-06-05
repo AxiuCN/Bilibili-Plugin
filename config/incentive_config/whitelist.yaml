@@ -1,0 +1,5 @@
+# 白名单
+# enabled: true  时，只在 users 列表中的 QQ 可使用激励功能
+# enabled: false 时，所有已登录用户均可使用
+enabled: true
+users: []

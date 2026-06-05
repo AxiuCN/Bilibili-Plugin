@@ -21,6 +21,69 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true })
 }
 
+// 确保激励全局配置存在
+const globalIncentiveCfg = path.join(configDir, 'incentive_config.yaml')
+if (!fs.existsSync(globalIncentiveCfg)) {
+  const defaultContent = [
+    '# ==============================================================',
+    '# 全局默认激励配置',
+    '# 锅巴后台或主人可直接修改此文件',
+    '# ==============================================================',
+    '',
+    'defaultTrigger:',
+    '  - time: "23:29"',
+    '    links: []',
+    '  - time: "23:59"',
+    '    links: []',
+    '  - time: "00:29"',
+    '    links: []',
+    '  - time: "00:59"',
+    '    links: []',
+    '',
+  ].join('\n')
+  fs.writeFileSync(globalIncentiveCfg, defaultContent, 'utf8')
+  logger.info('[Bilibili-Plugin] 已创建默认激励全局配置')
+}
+
+// 确保白名单配置存在
+const whitelistDir = path.join(configDir, 'incentive_config')
+fs.mkdirSync(whitelistDir, { recursive: true })
+const whitelistFile = path.join(whitelistDir, 'whitelist.yaml')
+if (!fs.existsSync(whitelistFile)) {
+  const wlContent = [
+    '# 白名单',
+    '# enabled: true 时，只在 users 列表中的 QQ 可使用激励功能',
+    'enabled: true',
+    'users: []',
+    '',
+  ].join('\n')
+  fs.writeFileSync(whitelistFile, wlContent, 'utf8')
+  logger.info('[Bilibili-Plugin] 已创建默认白名单配置')
+}
+
+// 确保个人配置模板存在
+const userCfgExample = path.join(whitelistDir, 'qq.xxx.example')
+if (!fs.existsSync(userCfgExample)) {
+  const exampleContent = [
+    '# 个人兑换配置',
+    '# 文件名: {QQ}.xxx，如 123456.xxx',
+    '# 可通过 #激励创建配置 从默认配置生成',
+    '',
+    'triggers:',
+    '  - time: "23:29"',
+    '    links: []',
+    '  - time: "23:59"',
+    '    links: []',
+    '  - time: "00:29"',
+    '    links: []',
+    '  - time: "00:59"',
+    '    links: []',
+    'notifyGroup: 0',
+    '',
+  ].join('\n')
+  fs.writeFileSync(userCfgExample, exampleContent, 'utf8')
+}
+
 const readdir = promisify(fs.readdir)
 
 logger.info('----Bilibili-Plugin----')

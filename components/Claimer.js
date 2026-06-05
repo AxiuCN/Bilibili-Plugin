@@ -63,7 +63,7 @@ async function doClaim(taskId, qq, cancelSignal) {
   // 4. 并发领取
   const cdkey = await client.claimAward(taskId, awardInfo, {
     threadCount: claimCfg.threadCount || 2,
-    maxRetry: claimCfg.maxRetry || 120,
+    maxRetry: 30,
     retryInterval: claimCfg.retryInterval || 1.0,
     cancelSignal,
   })

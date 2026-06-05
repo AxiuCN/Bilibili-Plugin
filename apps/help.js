@@ -3,12 +3,12 @@ import { render } from '../components/render.js'
 export class BiliHelp extends plugin {
   constructor() {
     super({
-      name: '[B站插件]帮助',
+      name: '[b站插件]帮助',
       dsc: '查看Bilibili-Plugin帮助',
       event: 'message',
       priority: 500,
       rule: [
-        { reg: '^#B站帮助$', fnc: 'help' },
+        { reg: /^#[bB]站帮助$/i, fnc: 'help' },
       ],
     })
   }
@@ -52,11 +52,11 @@ export class BiliHelp extends plugin {
       }
 
       const img = await render('help', 'index', data, 'png')
-      if (!img) return e.reply('[B站插件] 帮助图生成失败，请重试。')
+      if (!img) return e.reply('[b站插件] 帮助图生成失败，请重试。')
       return e.reply(img)
     } catch (err) {
       logger.error('[Bilibili-Plugin] 帮助图生成失败:', err)
-      return e.reply('[B站插件] 帮助图生成失败，请重试。')
+      return e.reply('[b站插件] 帮助图生成失败，请重试。')
     }
   }
 }
