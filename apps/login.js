@@ -1,6 +1,7 @@
 import { doLogin, createClient } from '../components/Claimer.js'
 import { loadAccountCookies, listBoundAccounts } from '../components/Storage.js'
 import { render } from '../components/render.js'
+import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
 
 /** 每个 QQ 独立冷却（1 分钟） */
 const loginCooldowns = new Map()
@@ -37,6 +38,8 @@ export class BiliLogin extends plugin {
           const img = await render('qrCode', 'index', {
             url,
             qq: e.user_id,
+            version: pluginVersion,
+            yunzaiVersion,
           }, 'png')
           return this.reply([segment.at(e.user_id), img], false, { recallMsg: 30 })
         },

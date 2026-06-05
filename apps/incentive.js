@@ -4,6 +4,7 @@ import { getPluginConfig } from '../components/config.js'
 import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
 import { createClient } from '../components/Claimer.js'
 import { render } from '../components/render.js'
+import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
 
 export class BiliIncentive extends plugin {
   constructor() {
@@ -160,9 +161,11 @@ export class BiliIncentive extends plugin {
       slots,
       totalFilled: slots.length,
       totalSlots: MAX_SLOTS,
+      version: pluginVersion,
+      yunzaiVersion,
     }, 'png')
 
-    this.reply([segment.at(e.user_id), img], false, { recallMsg: 60 })
+    this.reply([segment.at(e.user_id), img], false)
   }
 
   /**
