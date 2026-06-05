@@ -100,25 +100,68 @@ function normalizeUserConfig(data) {
 }
 
 /**
- * 写入指定 QQ 的个人配置
+ * 写入指定 QQ 的个人配置（文本级更新，保留注释）
  * @param {string|number} qq
  * @param {object} data
  */
 function saveUserConfig(qq, data) {
-  fs.mkdirSync(userCfgDir, { recursive: true })
+  const filePath = userCfgPath(qq)
   const normalized = normalizeUserConfig(data)
-  fs.writeFileSync(userCfgPath(qq), YAML.stringify(normalized, null, 2), 'utf8')
+
+  try {
+    let content = fs.readFileSync(filePath, 'utf8')
+    const lines = content.split('\n')
+
+    // 更新 notifyGroup
+    for (let i = 0; i < lines.length; i++) {
+      if (/^notifyGroup:/i.test(lines[i])) {
+        const indent = lines[i].match(/^(\s*)/)[1]
+        lines[i] = `${indent}notifyGroup: ${normalized.notifyGroup}`
+        break
+      }
+    }
+
+    // 按文件中 `  - "..."` 的行号顺序更新 13 个槽位
+    let slotIdx = 0
+    for (let i = 0; i < lines.length && slotIdx < MAX_SLOTS; i++) {
+      const match = lines[i].match(/^(\s*-\s*)"(.*)"\s*$/)
+      if (match) {
+        const url = normalized.links[slotIdx] || ''
+        const escaped = url.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        lines[i] = `${match[1]}"${escaped}"`
+        slotIdx++
+      }
+    }
+
+    fs.writeFileSync(filePath, lines.join('\n'), 'utf8')
+  } catch (e) {
+    logger.warn('[Bilibili-Plugin] 文本更新配置失败，使用 YAML 回退:', e)
+    fs.mkdirSync(userCfgDir, { recursive: true })
+    fs.writeFileSync(filePath, YAML.stringify(normalized, null, 2), 'utf8')
+  }
 }
 
 /**
- * 为指定 QQ 创建默认配置（从模板文件复制，保留注释）
+ * 模板变量替换（同 guoba.generateConfig），保留注释
+ * @param {string} template
+ * @param {object} values
+ * @returns {string}
+ */
+function renderTemplate(template, values) {
+  return template.replace(/\${(\w+)}/g, (_, name) =>
+    values[name] !== undefined ? String(values[name]) : '',
+  )
+}
+
+/**
+ * 为指定 QQ 创建默认配置（从模板文件复制，${变量} 替换保留注释）
  * @param {string|number} qq
  * @param {number} [notifyGroup]
  * @param {string} [templatePath] - 指定模板路径，不指定则用 userCfgTemplate
  * @returns {object} 创建后的配置
  */
 function createDefaultUserConfig(qq, notifyGroup = 0, templatePath = userCfgTemplate) {
-  let content = 'links: []\nnotifyGroup: 0\n'
+  let content = 'links:\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\n  - ""\nnotifyGroup: 0\n'
   try {
     if (templatePath && fs.existsSync(templatePath)) {
       content = fs.readFileSync(templatePath, 'utf8')
@@ -127,8 +170,7 @@ function createDefaultUserConfig(qq, notifyGroup = 0, templatePath = userCfgTemp
     logger.warn('[Bilibili-Plugin] 读取配置模板失败，使用默认:', e)
   }
 
-  const ng = notifyGroup || 0
-  content = content.replace(/^notifyGroup:\s*\d+/m, `notifyGroup: ${ng}`)
+  content = renderTemplate(content, { notifyGroup: notifyGroup || 0 })
 
   fs.mkdirSync(userCfgDir, { recursive: true })
   fs.writeFileSync(userCfgPath(qq), content, 'utf8')

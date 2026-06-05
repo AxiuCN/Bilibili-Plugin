@@ -10,7 +10,7 @@
 # links       : 固定 13 个槽位，填入含 task_id 的活动链接
 # ==============================================================
 
-notifyGroup: 0
+notifyGroup: ${notifyGroup}
 links:
   - ""
   - ""
