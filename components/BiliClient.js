@@ -236,10 +236,17 @@ class BiliClient {
             throw new BiliCookieInvalidError(`Cookie失效: code=${code}`)
           }
 
+          // 终态错误：已领取或库存耗尽，无需重试
+          if (code === 202031 || code === 75255) {
+            stop = true
+            throw new Error(`终态: code=${code} msg=${message}`)
+          }
+
           if (logCb) logCb(`[领取-提交] worker=${id} attempt=${attempt} code=${code} msg=${message}`)
           errLog.push(`w${id}-${attempt}: code=${code} msg=${message}`)
         } catch (e) {
           if (e instanceof BiliCookieInvalidError || e instanceof BiliRewardCancelledError) throw e
+          if (stop) throw e  // 终态错误（202031/75255）传播
           if (logCb) logCb(`[领取-提交] 异常 worker=${id} attempt=${attempt}: ${e.message}`)
           errLog.push(`w${id}-${attempt}: ${e.message}`)
         }
