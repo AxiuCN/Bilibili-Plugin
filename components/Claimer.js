@@ -35,19 +35,18 @@ async function doLogin(qq, opts = {}) {
  * @param {string} taskId
  * @param {string|number} qq
  * @param {object} [cancelSignal]
+ * @param {Function} [logCb] — 每次请求的回调 (msg)，用于文件日志
  * @returns {Promise<{cdkey: string, awardInfo: object}>}
  */
-async function doClaim(taskId, qq, cancelSignal) {
+async function doClaim(taskId, qq, cancelSignal, logCb = null) {
   const config = getPluginConfig()
   const claimCfg = config?.incentive?.claim || {}
 
-  // 1. 创建 client（使用该 QQ 绑定的 Cookie）
   const client = await createClient(qq)
   if (!client) {
     throw new Error('您尚未绑定B站账号，请先发送 #B站登录')
   }
 
-  // 2. 校验登录态
   try {
     await client.ensureLoggedIn()
   } catch (e) {
@@ -57,15 +56,14 @@ async function doClaim(taskId, qq, cancelSignal) {
     throw e
   }
 
-  // 3. 查询奖励信息
-  const awardInfo = await client.getAwardInfo(taskId)
+  const awardInfo = await client.getAwardInfo(taskId, logCb)
 
-  // 4. 并发领取
   const cdkey = await client.claimAward(taskId, awardInfo, {
     threadCount: claimCfg.threadCount || 2,
     maxRetry: 30,
     retryInterval: claimCfg.retryInterval || 1.0,
     cancelSignal,
+    logCb,
   })
 
   return { cdkey, awardInfo }

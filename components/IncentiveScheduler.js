@@ -87,8 +87,10 @@ async function startClaimRound(qq, links, notifyGroup, cancelSignal) {
   const slotsToClear = new Set()
   let cfg = loadUserConfig(qq)
 
+  /** 每次请求的日志回调：精确到 worker 每次 attempt */
+  const logCb = (msg) => logClaim(msg, qq)
+
   for (const url of links) {
-    // 全局截止时间到，跳过剩余槽位
     if (cancelSignal.cancelled) {
       results.push({ url, success: false, error: '达到全局截止时间' })
       continue
@@ -108,7 +110,7 @@ async function startClaimRound(qq, links, notifyGroup, cancelSignal) {
     logTask(`当前任务 ID: ${taskId}`, qq)
 
     try {
-      const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal)
+      const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal, logCb)
       results.push({ url, success: true, awardName: awardInfo.award_name, cdkey })
       logClaim(`成功: code=0, cdkey=${cdkey}`, qq)
       setTaskInfo(taskId, awardInfo)
@@ -120,14 +122,14 @@ async function startClaimRound(qq, links, notifyGroup, cancelSignal) {
       logClaim(`失败: ${errMsg}`, qq)
       logger.warn(`[Bilibili-Plugin] QQ ${qq} task ${taskId} 领取失败: ${errMsg}`)
 
-      // 截止时间到，不再处理后续链接
-      if (isDeadline) break
-
-      // 标记已领取的链接待清空
+      // 标记已领取的链接待清空（必须在 break 之前，截止时不跳过）
       if (isAlreadyClaimed(err.message) && cfg) {
         const idx = (cfg.links || []).findIndex(l => l === url)
         if (idx !== -1) slotsToClear.add(idx)
       }
+
+      // 截止时间到，不再处理后续链接
+      if (isDeadline) break
     }
   }
 
