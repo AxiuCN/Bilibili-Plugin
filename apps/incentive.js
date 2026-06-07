@@ -47,7 +47,7 @@ export class BiliIncentive extends plugin {
       {
         name: 'biliIncentiveFallback',
         fnc: () => this.fallbackTick(),
-        cron: `${0} ${fallM} ${fallH} * * ?`,
+        cron: fallbackCron,
         log: false,
       },
     ]
