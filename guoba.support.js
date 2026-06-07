@@ -88,6 +88,7 @@ export function supportGuoba() {
           component: 'Switch',
           required: true,
           componentProps: { defaultValue: true },
+        },
 
         // ---- 领取设置 ----
         {
@@ -97,7 +98,6 @@ export function supportGuoba() {
                 orientation: "left",
                 plain: true,
             },
-        },
         },
         {
           field: 'incentive.claimCron',
@@ -148,6 +148,7 @@ export function supportGuoba() {
           component: 'InputNumber',
           required: true,
           componentProps: { min: 3, max: 60, defaultValue: 10 },
+        },
 
         // ---- 兜底设置 ----
         {
@@ -158,10 +159,7 @@ export function supportGuoba() {
                 plain: true,
             },
         },
-        },
 
-        // ==================== 兜底任务 ====================
-        { label: '兜底任务', component: 'SOFT_GROUP_BEGIN' },
         {
           field: 'incentive.fallbackCron',
           label: '兜底领取 cron',
@@ -239,7 +237,7 @@ export function supportGuoba() {
         return {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
           'incentive.enabled': userCfg.incentive?.enabled ?? mainDefaults.incentive_enabled,
-          'incentive.claimTime': userCfg.incentive?.claimTime ?? mainDefaults.incentive_claimTime,
+          'incentive.claimCron': userCfg.incentive?.claimCron ?? mainDefaults.incentive_claimCron,
           'incentive.fallbackCron': userCfg.incentive?.fallbackCron ?? mainDefaults.incentive_fallbackCron,
           'incentive.claimDeadline': userCfg.incentive?.claimDeadline ?? mainDefaults.incentive_claimDeadline,
           'incentive.claim.threadCount': claim.threadCount ?? mainDefaults.incentive_claim_threadCount,
