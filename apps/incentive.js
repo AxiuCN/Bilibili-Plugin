@@ -25,15 +25,16 @@ export class BiliIncentive extends plugin {
     })
 
     const config = getPluginConfig()
-    // 主领取 cron，兼容旧版 claimTime（HH:mm）
-    let claimCron = config?.incentive?.claimCron
-    if (!claimCron && config?.incentive?.claimTime) {
+    // 直播 cron：优先 liveCron，兼容旧版 claimCron/claimTime（HH:mm）
+    let liveCron = config?.incentive?.liveCron
+    if (!liveCron) liveCron = config?.incentive?.claimCron
+    if (!liveCron && config?.incentive?.claimTime) {
       const [h, m] = config.incentive.claimTime.split(':').map(Number)
       const ch = Math.min(23, Math.max(0, isNaN(h) ? 1 : h))
       const cm = Math.min(59, Math.max(0, isNaN(m) ? 0 : m))
-      claimCron = `0 ${cm} ${ch} * * ?`
+      liveCron = `0 ${cm} ${ch} * * ?`
     }
-    claimCron = claimCron || '0 0 1 * * ?'
+    liveCron = liveCron || '0 0 1 * * ?'
 
     const watchCron = config?.incentive?.watchCron || '0 30 0 * * ?'
     const fallbackCron = config?.incentive?.fallbackCron || '0 55 23 * * ?'
@@ -42,7 +43,7 @@ export class BiliIncentive extends plugin {
       {
         name: 'biliIncentiveSchedule',
         fnc: () => this.tick('live'),
-        cron: claimCron,
+        cron: liveCron,
         log: false,
       },
       {
@@ -161,8 +162,8 @@ export class BiliIncentive extends plugin {
       const m = parts[1].padStart(2, '0')
       return `${h}:${m}`
     }
-    const claimCron = pluginCfg?.incentive?.claimCron || ''
-    const claimTime = pluginCfg?.incentive?.claimTime || cronToTime(claimCron, '01:00')
+    const liveCron = pluginCfg?.incentive?.liveCron || pluginCfg?.incentive?.claimCron || ''
+    const claimTime = pluginCfg?.incentive?.claimTime || cronToTime(liveCron, '01:00')
     const watchCron = pluginCfg?.incentive?.watchCron || ''
     const watchTime = cronToTime(watchCron, '00:30')
 

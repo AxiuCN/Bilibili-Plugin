@@ -13,14 +13,19 @@ const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
 const mainDefaults = {
   login_pollTimeout: 180,
   incentive_enabled: true,
-  incentive_claimCron: '0 0 1 * * ?',
-  incentive_watchCron: '0 30 0 * * ?',
-  incentive_fallbackCron: '0 55 23 * * ?',
+  incentive_liveCron: '0 0 1 * * ?',
   incentive_claimDeadline: 40,
   incentive_claim_threadCount: 2,
   incentive_claim_maxRetry: 30,
   incentive_claim_retryInterval: 1.0,
   incentive_claim_timeout: 10,
+  incentive_watchCron: '0 30 0 * * ?',
+  incentive_watchDeadline: 12,
+  incentive_watch_threadCount: 1,
+  incentive_watch_maxRetry: 30,
+  incentive_watch_retryInterval: 1.0,
+  incentive_watch_timeout: 10,
+  incentive_fallbackCron: '0 55 23 * * ?',
   incentive_dailyTaskLink1: '',
   incentive_dailyTaskLink2: '',
   incentive_dailyTaskLink3: '',
@@ -91,18 +96,18 @@ export function supportGuoba() {
           componentProps: { defaultValue: true },
         },
 
-        // ---- 领取设置 ----
+        // ---- 直播激励领取 ----
         {
             component: "Divider",
-            label: "领取设置",
+            label: "直播激励领取",
             componentProps: {
                 orientation: "left",
                 plain: true,
             },
         },
         {
-          field: 'incentive.claimCron',
-          label: '主领取 cron',
+          field: 'incentive.liveCron',
+          label: '直播领取 cron',
           helpMessage: 'cron 表达式，格式：秒 分 时 日 月 周',
           bottomHelpMessage: '默认 0 0 1 * * ? 表示每天凌晨1点整',
           component: 'EasyCron',
@@ -111,12 +116,22 @@ export function supportGuoba() {
         },
         {
           field: 'incentive.claimDeadline',
-          label: '全局截止（秒）',
-          helpMessage: '所有用户的总领取时间上限',
-          bottomHelpMessage: '到达此时间后取消剩余任务，0=不限时，默认 40',
+          label: '直播截止时间（秒）',
+          helpMessage: '所有用户的直播领取总时间上限',
+          bottomHelpMessage: '到达此时间后取消剩余直播任务，0=不限时，默认 40',
           component: 'InputNumber',
           required: true,
           componentProps: { min: 0, max: 300, defaultValue: 40 },
+        },
+
+        // ---- 直播领取设置 ----
+        {
+            component: "Divider",
+            label: "直播领取设置",
+            componentProps: {
+                orientation: "left",
+                plain: true,
+            },
         },
         {
           field: 'incentive.claim.threadCount',
@@ -151,10 +166,10 @@ export function supportGuoba() {
           componentProps: { min: 3, max: 60, defaultValue: 10 },
         },
 
-        // ---- 看播设置 ----
+        // ---- 看播激励领取 ----
         {
             component: "Divider",
-            label: "看播设置",
+            label: "看播激励领取",
             componentProps: {
                 orientation: "left",
                 plain: true,
@@ -169,11 +184,62 @@ export function supportGuoba() {
           required: true,
           componentProps: { showSecond: true, defaultValue: '0 30 0 * * ?' },
         },
+        {
+          field: 'incentive.watchDeadline',
+          label: '看播截止时间（秒）',
+          helpMessage: '所有用户的看播领取总时间上限',
+          bottomHelpMessage: '到达此时间后取消剩余看播任务，0=不限时，默认 12',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 0, max: 300, defaultValue: 12 },
+        },
 
-        // ---- 兜底设置 ----
+        // ---- 看播领取设置 ----
         {
             component: "Divider",
-            label: "兜底设置",
+            label: "看播领取设置",
+            componentProps: {
+                orientation: "left",
+                plain: true,
+            },
+        },
+        {
+          field: 'incentive.watch.threadCount',
+          label: '并发线程数',
+          helpMessage: '同时发送请求的 worker 数量',
+          bottomHelpMessage: '看播默认为 1，过高可能触发风控',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 1, max: 10, defaultValue: 1 },
+        },
+        {
+          field: 'incentive.watch.maxRetry',
+          label: '单线程重试次数',
+          helpMessage: '单个 worker 最大重试次数',
+          bottomHelpMessage: '默认 30',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 1, max: 300, defaultValue: 30 },
+        },
+        {
+          field: 'incentive.watch.retryInterval',
+          label: '重试间隔（秒）',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 0.1, max: 10, step: 0.1, precision: 1, defaultValue: 1.0 },
+        },
+        {
+          field: 'incentive.watch.timeout',
+          label: '请求超时（秒）',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 3, max: 60, defaultValue: 10 },
+        },
+
+        // ---- 每日任务激励兜底 ----
+        {
+            component: "Divider",
+            label: "每日任务激励兜底",
             componentProps: {
                 orientation: "left",
                 plain: true,
@@ -241,6 +307,7 @@ export function supportGuoba() {
       getConfigData() {
         const userCfg = parseYaml(configPath)
         const claim = userCfg.incentive?.claim || {}
+        const watch = userCfg.incentive?.watch || {}
 
         const userList = listUserConfigs().map(qq => {
           const cfg = loadUserConfig(qq) || { links: [], notifyGroup: 0 }
@@ -254,17 +321,25 @@ export function supportGuoba() {
 
         const dailyLinks = userCfg.incentive?.dailyTaskLinks || []
 
+        // 兼容旧版 claimCron
+        const liveCron = userCfg.incentive?.liveCron || userCfg.incentive?.claimCron
+
         return {
           'login.pollTimeout': userCfg.login?.pollTimeout ?? mainDefaults.login_pollTimeout,
           'incentive.enabled': userCfg.incentive?.enabled ?? mainDefaults.incentive_enabled,
-          'incentive.claimCron': userCfg.incentive?.claimCron ?? mainDefaults.incentive_claimCron,
-          'incentive.watchCron': userCfg.incentive?.watchCron ?? mainDefaults.incentive_watchCron,
-          'incentive.fallbackCron': userCfg.incentive?.fallbackCron ?? mainDefaults.incentive_fallbackCron,
+          'incentive.liveCron': liveCron ?? mainDefaults.incentive_liveCron,
           'incentive.claimDeadline': userCfg.incentive?.claimDeadline ?? mainDefaults.incentive_claimDeadline,
           'incentive.claim.threadCount': claim.threadCount ?? mainDefaults.incentive_claim_threadCount,
           'incentive.claim.maxRetry': claim.maxRetry ?? mainDefaults.incentive_claim_maxRetry,
           'incentive.claim.retryInterval': claim.retryInterval ?? mainDefaults.incentive_claim_retryInterval,
           'incentive.claim.timeout': claim.timeout ?? mainDefaults.incentive_claim_timeout,
+          'incentive.watchCron': userCfg.incentive?.watchCron ?? mainDefaults.incentive_watchCron,
+          'incentive.watchDeadline': userCfg.incentive?.watchDeadline ?? mainDefaults.incentive_watchDeadline,
+          'incentive.watch.threadCount': watch.threadCount ?? mainDefaults.incentive_watch_threadCount,
+          'incentive.watch.maxRetry': watch.maxRetry ?? mainDefaults.incentive_watch_maxRetry,
+          'incentive.watch.retryInterval': watch.retryInterval ?? mainDefaults.incentive_watch_retryInterval,
+          'incentive.watch.timeout': watch.timeout ?? mainDefaults.incentive_watch_timeout,
+          'incentive.fallbackCron': userCfg.incentive?.fallbackCron ?? mainDefaults.incentive_fallbackCron,
           'incentive.dailyTaskLink1': dailyLinks[0] || '',
           'incentive.dailyTaskLink2': dailyLinks[1] || '',
           'incentive.dailyTaskLink3': dailyLinks[2] || '',

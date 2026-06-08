@@ -73,8 +73,10 @@ async function onCronTick(mode = 'live') {
   const modeLabel = mode === 'watch' ? '看播' : '直播'
   const claimTime = mode === 'watch'
     ? (config?.incentive?.watchCron || '0 30 0 * * ?')
-    : (config?.incentive?.claimTime || '01:00')
-  const deadline = config?.incentive?.claimDeadline ?? DEFAULT_DEADLINE
+    : (config?.incentive?.liveCron || config?.incentive?.claimTime || '01:00')
+  const deadline = mode === 'watch'
+    ? (config?.incentive?.watchDeadline ?? 12)
+    : (config?.incentive?.claimDeadline ?? DEFAULT_DEADLINE)
   const allQq = listUserConfigs()
   if (!allQq.length) {
     logger.info(`[Bilibili-Plugin] 无配置用户，跳过${modeLabel}`)
@@ -197,7 +199,8 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
     } catch { /* getAwardInfo 失败不影响后续领取 */ }
 
     try {
-      const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal, logCb, cachedAwardInfo)
+      const configKey = mode === 'watch' ? 'watch' : 'claim'
+      const { cdkey, awardInfo } = await doClaim(taskId, qq, cancelSignal, logCb, cachedAwardInfo, configKey)
       slots.push({
         index: slotIdx + 1,
         status: 'success',

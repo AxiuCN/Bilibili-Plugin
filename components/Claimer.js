@@ -7,13 +7,15 @@ import { startLogin } from './BiliLogin.js'
  * 为指定 QQ 创建 BiliClient 实例
  * @param {string|number} qq
  * @param {object} [opts]
+ * @param {string} [configKey='claim'] — 配置键名 'claim' 或 'watch'
  * @returns {Promise<BiliClient|null>}
  */
-async function createClient(qq, opts = {}) {
+async function createClient(qq, opts = {}, configKey = 'claim') {
   const cookies = loadAccountCookies(qq)
   if (!cookies) return null
   const config = getPluginConfig()
-  const timeout = opts.timeout || config?.incentive?.claim?.timeout || 10
+  const cfg = config?.incentive?.[configKey] || {}
+  const timeout = opts.timeout || cfg.timeout || 10
   return new BiliClient(cookies, timeout)
 }
 
@@ -37,13 +39,14 @@ async function doLogin(qq, opts = {}) {
  * @param {object} [cancelSignal]
  * @param {Function} [logCb] — 每次请求的回调 (msg)，用于文件日志
  * @param {object} [awardInfo] — 可选，预获取的任务信息，若提供则跳过内部 getAwardInfo
+ * @param {string} [configKey='claim'] — 配置键名 'claim' 或 'watch'
  * @returns {Promise<{cdkey: string, awardInfo: object}>}
  */
-async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null) {
+async function doClaim(taskId, qq, cancelSignal, logCb = null, awardInfo = null, configKey = 'claim') {
   const config = getPluginConfig()
-  const claimCfg = config?.incentive?.claim || {}
+  const claimCfg = config?.incentive?.[configKey] || {}
 
-  const client = await createClient(qq)
+  const client = await createClient(qq, {}, configKey)
   if (!client) {
     throw new Error('您尚未绑定B站账号，请先发送 #B站登录')
   }
