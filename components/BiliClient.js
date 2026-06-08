@@ -238,9 +238,10 @@ class BiliClient {
             throw new BiliCookieInvalidError(`Cookie失效: code=${code}`)
           }
 
-          // 终态错误：无需重试
+          // 终态错误：无需重试，先记录再抛出，避免 Promise.any 时丢失
           if (code === 202031 || code === 202032 || code === 75255) {
             stop = true
+            errLog.push(`w${id}-${attempt}: code=${code} msg=${message}`)
             throw new Error(`终态: code=${code} msg=${message}`)
           }
 
@@ -265,6 +266,48 @@ class BiliClient {
       const last = errLog.slice(-5).join('; ')
       throw new Error(`领取失败: ${last}`)
     }
+  }
+
+  // ========== 单次领取（用于兜底任务，不重试）==========
+
+  /**
+   * 单次领取请求，不重试，无并发
+   * @param {string} taskId
+   * @param {object} awardInfo
+   * @returns {Promise<{success: boolean, code: number, message: string, cdkey: string}>}
+   */
+  async tryClaimOnce(taskId, awardInfo) {
+    const form = new URLSearchParams({
+      task_id: taskId,
+      activity_id: awardInfo.act_id,
+      activity_name: awardInfo.act_name,
+      task_name: awardInfo.task_name,
+      reward_name: awardInfo.award_name,
+      gaia_vtoken: '',
+      receive_from: 'missionPage',
+      csrf: this.getCsrf(),
+    }).toString()
+
+    const query = await this.getWebSign()
+    const payload = await this._post(`${MISSION_RECEIVE_URL}?${query}`, form)
+    const code = payload?.code ?? -1
+    const message = payload?.message || ''
+
+    if (code === 0) {
+      return {
+        success: true,
+        code: 0,
+        message: '',
+        cdkey: payload?.data?.extra_info?.cdkey_content || '',
+      }
+    }
+
+    // -101: cookie 失效
+    if (code === -101 || message.includes('账号未登录')) {
+      return { success: false, code: -101, message: 'Cookie失效', cdkey: '' }
+    }
+
+    return { success: false, code, message, cdkey: '' }
   }
 }
 

@@ -142,6 +142,15 @@
             border-top: 1px solid rgba(255,255,255,0.06);
         }
         .copyright { display: none; }
+        .clear-note {
+            text-align: center;
+            color: #6b7b8d;
+            font-size: 11px;
+            margin-top: 8px;
+            padding: 4px;
+            background: rgba(103, 194, 58, 0.08);
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -163,7 +172,7 @@
                             {{slot.award_name}}
                         </div>
                         <div class="status-line">
-                            <span class="tag claimed">领取成功，已删除</span>
+                            <span class="tag claimed">领取成功</span>
                             {{if slot.cdkey}}<span class="cdkey">cdkey={{slot.cdkey}}</span>{{/if}}
                         </div>
                     {{/if}}
@@ -225,6 +234,7 @@
                 </div>
             </div>
             {{/each}}
+            {{if clearedCount > 0}}<div class="clear-note">已自动清空 {{clearedCount}} 个已领取链接</div>{{/if}}
         {{else}}
             <div class="no-task-msg">暂无任务</div>
         {{/if}}

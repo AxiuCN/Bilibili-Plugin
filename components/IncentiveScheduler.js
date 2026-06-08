@@ -479,6 +479,7 @@ function buildPersonalNotifyData(userResult, date) {
     qq: userResult.qq,
     hasTasks: true,
     slots: slotList,
+    clearedCount: userResult.clearedCount || 0,
   }
 }
 
@@ -615,6 +616,12 @@ async function processUserFallback(qq, links) {
   const slots = []
   const logCb = (msg) => logClaim(msg, qq)
 
+  // 统一创建一次 client，供 getAwardInfo 和 tryClaimOnce 复用
+  let client = null
+  try {
+    client = await createClient(qq)
+  } catch {}
+
   for (const url of links) {
     const taskId = extractTaskId(url)
     if (!taskId) {
@@ -624,58 +631,61 @@ async function processUserFallback(qq, links) {
 
     logTask(`[兜底] 当前任务 ID: ${taskId}`, qq)
 
-    // 预获取任务信息
+    // 预获取任务信息，使失败时也能展示任务名称
     let cachedAwardInfo = null
-    try {
-      const client = await createClient(qq)
-      if (client) {
+    if (client) {
+      try {
         cachedAwardInfo = await client.getAwardInfo(taskId, logCb)
-      }
-    } catch {}
+      } catch {}
+    }
 
-    try {
-      const { cdkey, awardInfo } = await doClaim(taskId, qq, null, logCb, cachedAwardInfo)
+    if (!client) {
+      slots.push({ status: 'unclaimed', taskId, errorCode: '-1', errorMsg: '无法创建 API 客户端' })
+      await sleep(15000)
+      continue
+    }
+
+    // 单次领取请求，不重试
+    const result = await client.tryClaimOnce(taskId, cachedAwardInfo || {})
+
+    if (result.success) {
       slots.push({
         index: slots.length + 1,
         status: 'success',
         taskId,
-        act_name: awardInfo.act_name || '',
-        task_name: awardInfo.task_name || '',
-        task_desc: awardInfo.task_desc || '',
-        award_name: awardInfo.award_name || '',
-        cdkey: cdkey || '',
+        act_name: cachedAwardInfo?.act_name || '',
+        task_name: cachedAwardInfo?.task_name || '',
+        task_desc: cachedAwardInfo?.task_desc || '',
+        award_name: cachedAwardInfo?.award_name || '',
+        cdkey: result.cdkey || '',
       })
-      logClaim(`[兜底] 已领取: code=0`, qq)
-    } catch (err) {
-      if (isAlreadyClaimed(err.message)) {
-        const ai = cachedAwardInfo
-        slots.push({
-          index: slots.length + 1,
-          status: 'already_claimed',
-          taskId,
-          act_name: ai?.act_name || '',
-          task_name: ai?.task_name || '',
-          task_desc: ai?.task_desc || '',
-          award_name: ai?.award_name || '',
-        })
-        logClaim(`[兜底] 已领取过: ${err.message}`, qq)
-      } else {
-        const { code, msg } = parseErrorCode(err.message)
-        const failStatus = categorizeError(code, msg)
-        const ai = cachedAwardInfo
-        slots.push({
-          index: slots.length + 1,
-          status: failStatus,
-          taskId,
-          act_name: ai?.act_name || '',
-          task_name: ai?.task_name || '',
-          task_desc: ai?.task_desc || '',
-          award_name: ai?.award_name || '',
-          errorCode: code,
-          errorMsg: msg,
-        })
-        logClaim(`[兜底] ${failStatus}: ${err.message}`, qq)
-      }
+      logClaim(`[兜底] 已领取: code=0${result.cdkey ? ` cdkey=${result.cdkey}` : ''}`, qq)
+    } else if (result.code === 202031) {
+      // 已领取过
+      slots.push({
+        index: slots.length + 1,
+        status: 'already_claimed',
+        taskId,
+        act_name: cachedAwardInfo?.act_name || '',
+        task_name: cachedAwardInfo?.task_name || '',
+        task_desc: cachedAwardInfo?.task_desc || '',
+        award_name: cachedAwardInfo?.award_name || '',
+      })
+      logClaim(`[兜底] 已领取过: code=${result.code}`, qq)
+    } else {
+      const failStatus = categorizeError(String(result.code), result.message)
+      slots.push({
+        index: slots.length + 1,
+        status: failStatus,
+        taskId,
+        act_name: cachedAwardInfo?.act_name || '',
+        task_name: cachedAwardInfo?.task_name || '',
+        task_desc: cachedAwardInfo?.task_desc || '',
+        award_name: cachedAwardInfo?.award_name || '',
+        errorCode: String(result.code),
+        errorMsg: result.message,
+      })
+      logClaim(`[兜底] ${failStatus}: code=${result.code} msg=${result.message}`, qq)
     }
 
     await sleep(15000)  // 每条链接间隔 15s
