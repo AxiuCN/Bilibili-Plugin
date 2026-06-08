@@ -16,7 +16,7 @@ const userCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config', 'qq.
 const globalCfgTemplate = path.join(pluginRoot, 'config', 'incentive_config.yaml')
 const globalCfgExample = globalCfgTemplate + '.example'
 /** 白名单模板（git 已追踪） */
-const whitelistTemplate = path.join(pluginRoot, 'defSet', 'whitelist.yaml')
+const whitelistTemplate = path.join(pluginRoot, 'defSet', 'incentive_config', 'whitelist.yaml')
 
 // ========== 白名单 ==========
 
