@@ -257,7 +257,7 @@ export function supportGuoba() {
           const values = { ...mainDefaults }
           for (const [key, val] of Object.entries(data)) {
             if (key.startsWith('incentive.users')) continue
-            values[key.replace('.', '_')] = val
+            values[key.replace(/\./g, '_')] = val
           }
           const content = generateConfig(defaultConfigPath, values)
           const dir = path.dirname(configPath)
