@@ -171,6 +171,9 @@ export function supportGuoba() {
         },
 
         // ---- 兜底设置 ----
+        {
+            component: "Divider",
+            label: "兜底设置",
             componentProps: {
                 orientation: "left",
                 plain: true,
