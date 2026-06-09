@@ -37,16 +37,42 @@ function parseErrorCode(errMsg) {
 }
 
 /**
+ * 状态→HTML 显示文本映射
+ * 所有状态均在此定义，template 通过 displayText 字段引用，不再硬编码 if/else
+ */
+const STATUS_DISPLAY_MAP = {
+  success: '领取成功',
+  already_claimed: '已领取',
+  unclaimed: '未领取',
+  incomplete: '未完成',
+  exhausted: '库存耗尽',
+  suspicious: '账号行为异常',
+  skipped: '未开始',
+  empty: '暂无任务',
+  no_qualification: '无领取资格',
+  logged_out: '未登录',
+  not_yet_time: '未到领取时间',
+  config_error: '配置错误',
+  api_error: 'API客户端创建错误',
+  failed: '领取失败',
+}
+
+/**
  * 根据 API 错误码和消息归类失败原因
  * @param {string} code
  * @param {string} msg
- * @returns {'unclaimed'|'already_claimed'|'incomplete'|'exhausted'|'suspicious'}
+ * @returns {string} — STATUS_DISPLAY_MAP 中的 key
  */
 function categorizeError(code, msg) {
+  // 精确 code 匹配
   if (code === '202031') return 'already_claimed'
-  if (code === '202032') return 'incomplete'
+  if (code === '202032') return 'no_qualification'
   if (code === '75255') return 'exhausted'
   if (code === '202101') return 'suspicious'
+  if (code === '-101') return 'logged_out'
+  if (code === '202120') return 'not_yet_time'
+  if (code === '-509' || code === '-702' || code === '-705') return 'failed'
+  // 消息内容模糊匹配
   const m = msg || ''
   if (/未完成|不满足条件|无资格/.test(m)) return 'incomplete'
   if (/库存|已领完|耗尽|没有库存/.test(m)) return 'exhausted'
@@ -182,7 +208,7 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
     }
 
     if (!taskId) {
-      slots.push({ index: slotIdx + 1, status: 'unclaimed', errorCode: '?', errorMsg: '无法解析 task_id' })
+      slots.push({ index: slotIdx + 1, status: 'config_error', errorCode: '?', errorMsg: '无法解析 task_id' })
       lastCode = '?'
       continue
     }
@@ -227,9 +253,20 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
         slotsToClear.add(slotIdx)
       }
 
-      // 截止触发在此任务执行期间：标记当前及后续为 skipped
+      // 截止触发在此任务执行期间：当前槽标记为"领取失败"，后续未开始的标记为"未开始"
       if (isDeadline) {
-        fillRemainingSlots(slots, allLinks, slotIdx, slotRange.end)
+        slots.push({
+          index: slotIdx + 1,
+          status: 'failed',
+          taskId,
+          act_name: (cachedAwardInfo?.act_name) || '',
+          task_name: (cachedAwardInfo?.task_name) || '',
+          task_desc: (cachedAwardInfo?.task_desc) || '',
+          award_name: (cachedAwardInfo?.award_name) || '',
+          errorCode: code,
+          errorMsg: msg,
+        })
+        fillRemainingSlots(slots, allLinks, slotIdx + 1, slotRange.end)
         break
       }
 
@@ -353,9 +390,12 @@ function buildGroupNotifyData(gid, members, date) {
   let totalFail = 0
   let totalClaimed = 0
 
+  // 群通知展示所有非空状态（包含"未开始"和各类错误）
+  const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted',
+    'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
+    'config_error', 'api_error', 'failed']
+
   for (const m of members) {
-    // 群通知展示成功/已领取/未领取/未完成/库存耗尽，不含截止未开始和空槽
-    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted', 'suspicious']
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
     if (!activeSlots.length) {
       continue
@@ -367,6 +407,7 @@ function buildGroupNotifyData(gid, members, date) {
       task_desc: s.task_desc || '',
       award_name: s.award_name || '',
       status: s.status,
+      displayText: STATUS_DISPLAY_MAP[s.status] || '未知错误',
     }))
 
     for (const s of activeSlots) {
@@ -404,23 +445,21 @@ function buildGroupNotifyData(gid, members, date) {
 function buildGroupTextFallback(gid, members) {
   const modeLabel = members[0]?.mode === 'watch' ? '看播' : ''
   const lines = [`[b站插件] 群 ${gid} ${modeLabel}激励领取结果`]
+  const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted',
+    'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
+    'config_error', 'api_error', 'failed']
+
   for (const m of members) {
-    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted', 'suspicious']
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
     if (!activeSlots.length) continue
-    const success = activeSlots.filter(s => s.status === 'success').length
-    const already = activeSlots.filter(s => s.status === 'already_claimed').length
-    const unclaimed = activeSlots.filter(s => s.status === 'unclaimed').length
-    const incomplete = activeSlots.filter(s => s.status === 'incomplete').length
-    const exhausted = activeSlots.filter(s => s.status === 'exhausted').length
-    const suspicious = activeSlots.filter(s => s.status === 'suspicious').length
-    const parts = []
-    if (success) parts.push(`${success}成功`)
-    if (already) parts.push(`${already}已领取`)
-    if (unclaimed) parts.push(`${unclaimed}未领取`)
-    if (incomplete) parts.push(`${incomplete}未完成`)
-    if (exhausted) parts.push(`${exhausted}库存耗尽`)
-    if (suspicious) parts.push(`${suspicious}行为异常`)
+
+    // 按状态分组统计
+    const counts = {}
+    for (const s of activeSlots) {
+      const label = STATUS_DISPLAY_MAP[s.status] || s.status
+      counts[label] = (counts[label] || 0) + 1
+    }
+    const parts = Object.entries(counts).map(([k, v]) => `${v}${k}`)
     lines.push(`QQ ${m.qq}: ${parts.join(', ')}`)
   }
   return lines.join('\n')
@@ -496,6 +535,7 @@ function buildPersonalNotifyData(userResult, date) {
     task_desc: s.task_desc || '',
     award_name: s.award_name || '',
     status: s.status === 'success' ? 'claimed' : s.status,  // 模板中识别 'claimed'
+    displayText: STATUS_DISPLAY_MAP[s.status] || '未知错误',
     cdkey: s.cdkey || '',
   }))
 
@@ -529,20 +569,14 @@ function buildPersonalTextFallback(ur) {
 
   for (const s of activeSlots) {
     const prefix = `槽位${s.index}: `
+    const display = STATUS_DISPLAY_MAP[s.status] || '未知错误'
     if (s.status === 'success') {
-      lines.push(`${prefix}领取成功${s.cdkey ? ` cdkey=${s.cdkey}` : ''}`)
-    } else if (s.status === 'already_claimed') {
-      lines.push(`${prefix}已领取过`)
+      lines.push(`${prefix}${display}${s.cdkey ? ` cdkey=${s.cdkey}` : ''}`)
     } else if (s.status === 'unclaimed') {
-      lines.push(`${prefix}未领取 code=${s.errorCode}`)
-    } else if (s.status === 'incomplete') {
-      lines.push(`${prefix}未完成`)
-    } else if (s.status === 'exhausted') {
-      lines.push(`${prefix}库存耗尽`)
-    } else if (s.status === 'suspicious') {
-      lines.push(`${prefix}账号行为异常`)
-    } else if (s.status === 'skipped') {
-      lines.push(`${prefix}未开始`)
+      // 未领取带 code 方便排查
+      lines.push(`${prefix}${display} code=${s.errorCode}`)
+    } else {
+      lines.push(`${prefix}${display}`)
     }
   }
 
@@ -659,7 +693,7 @@ async function processUserFallback(qq, links) {
   for (const url of links) {
     const taskId = extractTaskId(url)
     if (!taskId) {
-      slots.push({ status: 'unclaimed', errorCode: '?', errorMsg: '无法解析 task_id' })
+      slots.push({ index: slots.length + 1, status: 'config_error', errorCode: '?', errorMsg: '无法解析 task_id' })
       continue
     }
 
@@ -674,7 +708,7 @@ async function processUserFallback(qq, links) {
     }
 
     if (!client) {
-      slots.push({ status: 'unclaimed', taskId, errorCode: '-1', errorMsg: '无法创建 API 客户端' })
+      slots.push({ index: slots.length + 1, status: 'api_error', taskId, errorCode: '-1', errorMsg: '无法创建 API 客户端' })
       await sleep(15000)
       continue
     }

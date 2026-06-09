@@ -48,21 +48,22 @@
         .slot-card.status-already_claimed {
             border-left-color: #909399;
         }
-        .slot-card.status-unclaimed {
+        .slot-card.status-unclaimed,
+        .slot-card.status-config_error,
+        .slot-card.status-api_error,
+        .slot-card.status-failed {
             border-left-color: #f56c6c;
         }
-        .slot-card.status-incomplete {
+        .slot-card.status-incomplete,
+        .slot-card.status-skipped,
+        .slot-card.status-no_qualification,
+        .slot-card.status-not_yet_time {
             border-left-color: #e6a23c;
         }
         .slot-card.status-exhausted,
-        .slot-card.status-suspicious {
+        .slot-card.status-suspicious,
+        .slot-card.status-logged_out {
             border-left-color: #b05050;
-        }
-        .slot-card.status-skipped {
-            border-left-color: #e6a23c;
-        }
-        .slot-card.status-empty {
-            border-left-color: #555;
         }
         .slot-index {
             flex-shrink: 0;
@@ -99,30 +100,27 @@
             background: rgba(103, 194, 58, 0.2);
             color: #95d475;
         }
-        .slot-body .status-line .tag.unclaimed {
+        .slot-body .status-line .tag.unclaimed,
+        .slot-body .status-line .tag.config_error,
+        .slot-body .status-line .tag.api_error,
+        .slot-body .status-line .tag.failed {
             background: rgba(245, 108, 108, 0.2);
             color: #f56c6c;
         }
-        .slot-body .status-line .tag.incomplete {
+        .slot-body .status-line .tag.incomplete,
+        .slot-body .status-line .tag.skipped,
+        .slot-body .status-line .tag.no_qualification,
+        .slot-body .status-line .tag.not_yet_time {
             background: rgba(230, 162, 60, 0.2);
             color: #e6a23c;
         }
-        .slot-body .status-line .tag.exhausted {
+        .slot-body .status-line .tag.exhausted,
+        .slot-body .status-line .tag.suspicious,
+        .slot-body .status-line .tag.logged_out {
             background: rgba(180, 80, 80, 0.2);
             color: #d47c7c;
         }
-        .slot-body .status-line .tag.suspicious {
-            background: rgba(180, 80, 80, 0.2);
-            color: #d47c7c;
-        }
-        .slot-body .status-line .tag.skipped {
-            background: rgba(230, 162, 60, 0.2);
-            color: #e6a23c;
-        }
-        .slot-body .status-line .tag.already_claimed {
-            background: rgba(144, 147, 153, 0.2);
-            color: #909399;
-        }
+        .slot-body .status-line .tag.already_claimed,
         .slot-body .status-line .tag.empty {
             background: rgba(144, 147, 153, 0.2);
             color: #909399;
@@ -170,82 +168,19 @@
             <div class="slot-card status-{{slot.status}}">
                 <div class="slot-index">{{slot.index}}</div>
                 <div class="slot-body">
-                    {{if slot.status === 'claimed'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag claimed">领取成功</span>
-                            {{if slot.cdkey}}<span class="cdkey">cdkey={{slot.cdkey}}</span>{{/if}}
-                        </div>
+                    {{if slot.act_name || slot.task_name || slot.award_name}}
+                    <div class="task-line">
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                    </div>
                     {{/if}}
-                    {{if slot.status === 'unclaimed'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag unclaimed">未领取</span>
-                        </div>
-                    {{/if}}
-                    {{if slot.status === 'incomplete'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag incomplete">未完成</span>
-                        </div>
-                    {{/if}}
-                    {{if slot.status === 'exhausted'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag exhausted">库存耗尽</span>
-                        </div>
-                    {{/if}}
-                    {{if slot.status === 'suspicious'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag suspicious">账号行为异常</span>
-                        </div>
-                    {{/if}}
-                    {{if slot.status === 'already_claimed'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag already_claimed">已领取过</span>
-                        </div>
-                    {{/if}}
-                    {{if slot.status === 'skipped'}}
-                        <div class="task-line">
-                            {{slot.act_name}}
-                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
-                            {{slot.award_name}}
-                        </div>
-                        <div class="status-line">
-                            <span class="tag skipped">未开始</span>
-                        </div>
-                    {{/if}}
-                    {{if slot.status === 'empty'}}
-                        <div class="status-line">
-                            <span class="tag empty">暂无任务</span>
-                        </div>
-                    {{/if}}
+                    <div class="status-line">
+                        <span class="tag {{slot.status}}">{{slot.displayText || '未知错误'}}</span>
+                        {{if slot.status === 'claimed' && slot.cdkey}}
+                        <span class="cdkey">cdkey={{slot.cdkey}}</span>
+                        {{/if}}
+                    </div>
                 </div>
             </div>
             {{/each}}
