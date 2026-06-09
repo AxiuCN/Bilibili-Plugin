@@ -54,7 +54,8 @@
         .slot-card.status-incomplete {
             border-left-color: #e6a23c;
         }
-        .slot-card.status-exhausted {
+        .slot-card.status-exhausted,
+        .slot-card.status-suspicious {
             border-left-color: #b05050;
         }
         .slot-card.status-skipped {
@@ -107,6 +108,10 @@
             color: #e6a23c;
         }
         .slot-body .status-line .tag.exhausted {
+            background: rgba(180, 80, 80, 0.2);
+            color: #d47c7c;
+        }
+        .slot-body .status-line .tag.suspicious {
             background: rgba(180, 80, 80, 0.2);
             color: #d47c7c;
         }
@@ -204,6 +209,16 @@
                         </div>
                         <div class="status-line">
                             <span class="tag exhausted">库存耗尽</span>
+                        </div>
+                    {{/if}}
+                    {{if slot.status === 'suspicious'}}
+                        <div class="task-line">
+                            {{slot.act_name}}
+                            {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                            {{slot.award_name}}
+                        </div>
+                        <div class="status-line">
+                            <span class="tag suspicious">账号行为异常</span>
                         </div>
                     {{/if}}
                     {{if slot.status === 'already_claimed'}}

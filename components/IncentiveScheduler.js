@@ -40,15 +40,17 @@ function parseErrorCode(errMsg) {
  * 根据 API 错误码和消息归类失败原因
  * @param {string} code
  * @param {string} msg
- * @returns {'unclaimed'|'already_claimed'|'incomplete'|'exhausted'}
+ * @returns {'unclaimed'|'already_claimed'|'incomplete'|'exhausted'|'suspicious'}
  */
 function categorizeError(code, msg) {
   if (code === '202031') return 'already_claimed'
   if (code === '202032') return 'incomplete'
   if (code === '75255') return 'exhausted'
+  if (code === '202101') return 'suspicious'
   const m = msg || ''
   if (/未完成|不满足条件|无资格/.test(m)) return 'incomplete'
   if (/库存|已领完|耗尽|没有库存/.test(m)) return 'exhausted'
+  if (/行为异常/.test(m)) return 'suspicious'
   return 'unclaimed'
 }
 
@@ -353,7 +355,7 @@ function buildGroupNotifyData(gid, members, date) {
 
   for (const m of members) {
     // 群通知展示成功/已领取/未领取/未完成/库存耗尽，不含截止未开始和空槽
-    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted']
+    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted', 'suspicious']
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
     if (!activeSlots.length) {
       continue
@@ -403,7 +405,7 @@ function buildGroupTextFallback(gid, members) {
   const modeLabel = members[0]?.mode === 'watch' ? '看播' : ''
   const lines = [`[b站插件] 群 ${gid} ${modeLabel}激励领取结果`]
   for (const m of members) {
-    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted']
+    const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted', 'suspicious']
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
     if (!activeSlots.length) continue
     const success = activeSlots.filter(s => s.status === 'success').length
@@ -411,12 +413,14 @@ function buildGroupTextFallback(gid, members) {
     const unclaimed = activeSlots.filter(s => s.status === 'unclaimed').length
     const incomplete = activeSlots.filter(s => s.status === 'incomplete').length
     const exhausted = activeSlots.filter(s => s.status === 'exhausted').length
+    const suspicious = activeSlots.filter(s => s.status === 'suspicious').length
     const parts = []
     if (success) parts.push(`${success}成功`)
     if (already) parts.push(`${already}已领取`)
     if (unclaimed) parts.push(`${unclaimed}未领取`)
     if (incomplete) parts.push(`${incomplete}未完成`)
     if (exhausted) parts.push(`${exhausted}库存耗尽`)
+    if (suspicious) parts.push(`${suspicious}行为异常`)
     lines.push(`QQ ${m.qq}: ${parts.join(', ')}`)
   }
   return lines.join('\n')
@@ -535,6 +539,8 @@ function buildPersonalTextFallback(ur) {
       lines.push(`${prefix}未完成`)
     } else if (s.status === 'exhausted') {
       lines.push(`${prefix}库存耗尽`)
+    } else if (s.status === 'suspicious') {
+      lines.push(`${prefix}账号行为异常`)
     } else if (s.status === 'skipped') {
       lines.push(`${prefix}未开始`)
     }

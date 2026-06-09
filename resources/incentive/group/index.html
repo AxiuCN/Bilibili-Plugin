@@ -82,7 +82,8 @@
             background: rgba(230, 162, 60, 0.12);
             color: #e6a23c;
         }
-        .slot-row.exhausted {
+        .slot-row.exhausted,
+        .slot-row.suspicious {
             background: rgba(180, 80, 80, 0.15);
             color: #d47c7c;
         }
@@ -111,6 +112,10 @@
             color: #e6a23c;
         }
         .slot-row.exhausted .status-tag {
+            background: rgba(180, 80, 80, 0.25);
+            color: #d47c7c;
+        }
+        .slot-row.suspicious .status-tag {
             background: rgba(180, 80, 80, 0.25);
             color: #d47c7c;
         }
@@ -177,6 +182,12 @@
                         {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
                         {{slot.award_name}}
                         <span class="status-tag">库存耗尽</span>
+                    {{/if}}
+                    {{if slot.status === 'suspicious'}}
+                        {{slot.act_name}}
+                        {{if slot.task_name}} · {{slot.task_name}}{{if slot.task_desc}}-{{slot.task_desc}}{{/if}}{{/if}}
+                        {{slot.award_name}}
+                        <span class="status-tag">账号行为异常</span>
                     {{/if}}
                 </div>
                 {{/each}}
