@@ -201,9 +201,31 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
       if (m) taskId = m[1]
     }
 
-    // 截止时间到：剩余非空槽全部标记 skipped
+    // 截止时间到：获取剩余槽位的任务信息（使通知能显示任务名），再标记未开始
     if (cancelSignal.cancelled) {
-      fillRemainingSlots(slots, allLinks, slotIdx, slotRange.end)
+      let client = null
+      try { client = await createClient(qq) } catch {}
+      for (let j = slotIdx; j < slotRange.end; j++) {
+        const u = (allLinks[j] || '').trim()
+        if (!u) {
+          slots.push({ index: j + 1, status: 'empty' })
+          continue
+        }
+        const tid = extractTaskId(u)
+        let info = null
+        if (client && tid) {
+          try { info = await client.getAwardInfo(tid, logCb) } catch {}
+        }
+        slots.push({
+          index: j + 1,
+          status: 'skipped',
+          taskId: tid || '',
+          act_name: info?.act_name || '',
+          task_name: info?.task_name || '',
+          task_desc: info?.task_desc || '',
+          award_name: info?.award_name || '',
+        })
+      }
       break
     }
 
@@ -217,8 +239,9 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
 
     // 预获取任务信息，使失败时也能展示任务名称
     let cachedAwardInfo = null
+    let client = null
     try {
-      const client = await createClient(qq)
+      client = await createClient(qq)
       if (client) {
         await client.ensureLoggedIn()
         cachedAwardInfo = await client.getAwardInfo(taskId, logCb)
@@ -266,7 +289,28 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
           errorCode: code,
           errorMsg: msg,
         })
-        fillRemainingSlots(slots, allLinks, slotIdx + 1, slotRange.end)
+        // 获取后续槽位的任务信息（复用已创建的 client），使通知能显示任务名
+        for (let j = slotIdx + 1; j < slotRange.end; j++) {
+          const u = (allLinks[j] || '').trim()
+          if (!u) {
+            slots.push({ index: j + 1, status: 'empty' })
+            continue
+          }
+          const tid = extractTaskId(u)
+          let info = null
+          if (client && tid) {
+            try { info = await client.getAwardInfo(tid, logCb) } catch {}
+          }
+          slots.push({
+            index: j + 1,
+            status: 'skipped',
+            taskId: tid || '',
+            act_name: info?.act_name || '',
+            task_name: info?.task_name || '',
+            task_desc: info?.task_desc || '',
+            award_name: info?.award_name || '',
+          })
+        }
         break
       }
 
@@ -307,24 +351,6 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
   }
 
   return { qq, notifyGroup, slots, clearedCount: slotsToClear.size, mode }
-}
-
-/**
- * 补充剩余槽位——截止时间到时，非空填 skipped，空填 empty
- * @param {object[]} slots   — 收集结果的数组
- * @param {string[]} allLinks
- * @param {number} fromIdx   — 起始槽位索引
- * @param {number} end       — 结束索引（不含），默认 MAX_SLOTS
- */
-function fillRemainingSlots(slots, allLinks, fromIdx, end = MAX_SLOTS) {
-  for (let j = fromIdx; j < end; j++) {
-    const u = (allLinks[j] || '').trim()
-    if (u) {
-      slots.push({ index: j + 1, status: 'skipped' })
-    } else {
-      slots.push({ index: j + 1, status: 'empty' })
-    }
-  }
 }
 
 // ===================== 群通知 =====================
