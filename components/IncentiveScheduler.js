@@ -3,7 +3,7 @@ import { loadAccountCookies } from '../components/Storage.js'
 import { doClaim, createClient } from '../components/Claimer.js'
 import { getPluginConfig } from '../components/config.js'
 import { logTask, logClaim } from '../components/Logger.js'
-import { setTaskInfo } from '../components/TaskCache.js'
+import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
 import { render } from '../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
 
@@ -245,8 +245,20 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
       client = await createClient(qq)
       if (client) {
         await client.ensureLoggedIn()
-        cachedAwardInfo = await client.getAwardInfo(taskId, logCb)
-        setTaskInfo(taskId, cachedAwardInfo)
+        // 优先读持久缓存，避免 API 限流导致任务信息丢失
+        cachedAwardInfo = getTaskInfo(taskId)
+        if (!cachedAwardInfo) {
+          // 缓存未命中，调用 API 并回写缓存
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              cachedAwardInfo = await client.getAwardInfo(taskId, logCb)
+              break
+            } catch (e) {
+              if (attempt < 2) await sleep(800 * (attempt + 1))
+            }
+          }
+          if (cachedAwardInfo) setTaskInfo(taskId, cachedAwardInfo)
+        }
       }
     } catch { /* getAwardInfo 失败不影响后续领取 */ }
 
@@ -270,6 +282,11 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
     } catch (err) {
       // doClaim 失败时附带了 awardInfo，用它兜底展示任务名
       if (!cachedAwardInfo?.act_name && err.awardInfo) cachedAwardInfo = err.awardInfo
+      // 兜底：读缓存（可能被其他用户写入），仍缺失时尝试重新获取
+      if (!cachedAwardInfo?.act_name) cachedAwardInfo = getTaskInfo(taskId)
+      if (!cachedAwardInfo?.act_name && client) {
+        try { cachedAwardInfo = await client.getAwardInfo(taskId, logCb) } catch {}
+      }
       const isDeadline = cancelSignal.cancelled
       const errMsg = isDeadline ? '达到全局截止时间' : err.message
       const { code, msg } = parseErrorCode(errMsg)
@@ -302,7 +319,11 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
           const tid = extractTaskId(u)
           let info = null
           if (client && tid) {
-            try { info = await client.getAwardInfo(tid, logCb) } catch {}
+            // 优先读缓存，避免 API 限流时无法获取任务名称
+            info = getTaskInfo(tid)
+            if (!info) {
+              try { info = await client.getAwardInfo(tid, logCb) } catch {}
+            }
           }
           slots.push({
             index: j + 1,
