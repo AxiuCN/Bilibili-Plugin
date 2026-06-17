@@ -1,7 +1,7 @@
 import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from '../components/IncentiveConfig.js'
 import { loadAccountCookies } from '../components/Storage.js'
 import { doClaim, createClient } from '../components/Claimer.js'
-import { getPluginConfig } from '../components/config.js'
+import { getPluginConfig, removeDailyTaskLink } from '../components/config.js'
 import { logTask, logClaim } from '../components/Logger.js'
 import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
 import { render } from '../components/render.js'
@@ -53,6 +53,7 @@ const STATUS_DISPLAY_MAP = {
   no_qualification: '无领取资格',
   logged_out: '未登录',
   not_yet_time: '未到领取时间',
+  ended: '已结束',
   config_error: '配置错误',
   api_error: 'API客户端创建错误',
   failed: '领取失败',
@@ -69,6 +70,7 @@ function categorizeError(code, msg) {
   if (code === '202031') return 'already_claimed'
   if (code === '202032') return 'no_qualification'
   if (code === '75255') return 'exhausted'
+  if (code === '202129') return 'ended'
   if (code === '202101') return 'suspicious'
   if (code === '-101') return 'logged_out'
   if (code === '202120') return 'not_yet_time'
@@ -294,6 +296,10 @@ async function startClaimRound(qq, cfg, cancelSignal, slotRange = { start: 0, en
       if (isAlreadyClaimed(err.message)) {
         slotsToClear.add(slotIdx)
       }
+      // 活动已结束，也标记清空
+      if (code === '202129') {
+        slotsToClear.add(slotIdx)
+      }
 
       // 截止触发在此任务执行期间：当前槽标记为"领取失败"，后续未开始的标记为"未开始"
       if (isDeadline) {
@@ -441,7 +447,7 @@ function buildGroupNotifyData(gid, members, date) {
   // 群通知展示所有非空状态（包含"未开始"和各类错误）
   const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted',
     'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
-    'config_error', 'api_error', 'failed']
+    'ended', 'config_error', 'api_error', 'failed']
 
   for (const m of members) {
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
@@ -495,7 +501,7 @@ function buildGroupTextFallback(gid, members) {
   const lines = [`[b站插件] 群 ${gid} ${modeLabel}激励领取结果`]
   const showStatuses = ['success', 'already_claimed', 'unclaimed', 'incomplete', 'exhausted',
     'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
-    'config_error', 'api_error', 'failed']
+    'ended', 'config_error', 'api_error', 'failed']
 
   for (const m of members) {
     const activeSlots = m.slots.filter(s => showStatuses.includes(s.status))
@@ -790,6 +796,10 @@ async function processUserFallback(qq, links) {
       logClaim(`[兜底] 已领取过: code=${result.code}`, qq)
     } else {
       const failStatus = categorizeError(String(result.code), result.message)
+      // 活动已结束：从全局 dailyTaskLinks 中移除该链接
+      if (result.code === 202129) {
+        removeDailyTaskLink(url)
+      }
       slots.push({
         index: slots.length + 1,
         status: failStatus,

@@ -239,7 +239,7 @@ class BiliClient {
           }
 
           // 终态错误：无需重试，先记录再抛出，避免 Promise.any 时丢失
-          if (code === 202031 || code === 202032 || code === 75255) {
+          if (code === 202031 || code === 202032 || code === 75255 || code === 202129) {
             stop = true
             errLog.push(`w${id}-${attempt}: code=${code} msg=${message}`)
             throw new Error(`终态: code=${code} msg=${message}`)
