@@ -54,3 +54,18 @@ incentive:
     - '${incentive_dailyTaskLink2}'
     - '${incentive_dailyTaskLink3}'
     - '${incentive_dailyTaskLink4}'
+
+# B站直播推送（apps/livepush.js）
+livePush:
+  # 是否启用
+  enabled: ${livePush_enabled}
+  # cron 表达式（秒 分 时 日 月 周）
+  cron: ${livePush_cron}
+  # 是否推送下播消息
+  endPush: ${livePush_endPush}
+  # 是否使用合并转发推送
+  forward: ${livePush_forward}
+  # 标题变更时是否再次推送
+  rePush: ${livePush_rePush}
+  # 群间推送间隔（秒）
+  sleep: ${livePush_sleep}

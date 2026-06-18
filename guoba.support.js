@@ -30,6 +30,12 @@ const mainDefaults = {
   incentive_dailyTaskLink2: '',
   incentive_dailyTaskLink3: '',
   incentive_dailyTaskLink4: '',
+  livePush_enabled: true,
+  livePush_cron: '10 */1 * * * ?',
+  livePush_endPush: true,
+  livePush_forward: false,
+  livePush_rePush: false,
+  livePush_sleep: 0,
 }
 
 function getTemplate(path) {
@@ -302,6 +308,61 @@ export function supportGuoba() {
             ],
           },
         },
+
+        // ==================== 直播推送 ====================
+        { label: '直播推送', component: 'SOFT_GROUP_BEGIN' },
+        {
+          field: 'livePush.enabled',
+          label: '直播推送开关',
+          helpMessage: '是否开启B站直播开播/下播推送',
+          bottomHelpMessage: '每小时第10秒检查订阅的直播间状态',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true },
+        },
+        {
+          field: 'livePush.cron',
+          label: '推送检查 cron',
+          helpMessage: 'cron 表达式，格式：秒 分 时 日 月 周',
+          bottomHelpMessage: '默认 10 */1 * * * ? 表示每小时第10秒',
+          component: 'EasyCron',
+          required: true,
+          componentProps: { showSecond: true, defaultValue: '10 */1 * * * ?' },
+        },
+        {
+          field: 'livePush.endPush',
+          label: '下播推送',
+          helpMessage: '主播下播时是否发送下播通知',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: true },
+        },
+        {
+          field: 'livePush.forward',
+          label: '合并转发推送',
+          helpMessage: '使用合并转发发送推送消息',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: false },
+        },
+        {
+          field: 'livePush.rePush',
+          label: '改标题二次推送',
+          helpMessage: '直播间标题变更时再次推送',
+          component: 'Switch',
+          required: true,
+          componentProps: { defaultValue: false },
+        },
+        {
+          field: 'livePush.sleep',
+          label: '群发间隔（秒）',
+          helpMessage: '推送给多个群时的间隔时间',
+          bottomHelpMessage: '避免同时推送到多个群造成风控，默认 0',
+          component: 'InputNumber',
+          required: true,
+          componentProps: { min: 0, max: 30, defaultValue: 0 },
+        },
+
       ],
 
       getConfigData() {
@@ -320,6 +381,7 @@ export function supportGuoba() {
         })
 
         const dailyLinks = userCfg.incentive?.dailyTaskLinks || []
+        const livePush = userCfg.livePush || {}
 
         // 兼容旧版 claimCron
         const liveCron = userCfg.incentive?.liveCron || userCfg.incentive?.claimCron
@@ -344,6 +406,12 @@ export function supportGuoba() {
           'incentive.dailyTaskLink2': dailyLinks[1] || '',
           'incentive.dailyTaskLink3': dailyLinks[2] || '',
           'incentive.dailyTaskLink4': dailyLinks[3] || '',
+          'livePush.enabled': livePush.enabled ?? mainDefaults.livePush_enabled,
+          'livePush.cron': livePush.cron ?? mainDefaults.livePush_cron,
+          'livePush.endPush': livePush.endPush ?? mainDefaults.livePush_endPush,
+          'livePush.forward': livePush.forward ?? mainDefaults.livePush_forward,
+          'livePush.rePush': livePush.rePush ?? mainDefaults.livePush_rePush,
+          'livePush.sleep': livePush.sleep ?? mainDefaults.livePush_sleep,
           'incentive.users': userList,
         }
       },
