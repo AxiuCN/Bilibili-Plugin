@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import YAML from 'yaml'
-import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from './components/IncentiveConfig.js'
+import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from './modules/incentive/Config.js'
 
 const pluginRoot = path.join(process.cwd(), 'plugins/Bilibili-Plugin')
 

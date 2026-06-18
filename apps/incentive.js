@@ -1,8 +1,8 @@
-import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../components/IncentiveConfig.js'
-import { onCronTick, onFallbackTick, manualDailyClaim } from '../components/IncentiveScheduler.js'
+import { loadUserConfig, saveUserConfig, createDefaultUserConfig, createGlobalDefaultConfig, loadWhitelist, saveWhitelist, isWhitelisted, MAX_SLOTS } from '../modules/incentive/Config.js'
+import { onCronTick, onFallbackTick, manualDailyClaim } from '../modules/incentive/Scheduler.js'
 import { getPluginConfig } from '../components/config.js'
-import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
-import { createClient } from '../components/Claimer.js'
+import { getTaskInfo, setTaskInfo } from '../modules/incentive/TaskCache.js'
+import { createClient } from '../modules/incentive/Claimer.js'
 import { render } from '../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
 

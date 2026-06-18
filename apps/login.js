@@ -1,4 +1,4 @@
-import { doLogin, createClient } from '../components/Claimer.js'
+import { doLogin, createClient } from '../modules/incentive/Claimer.js'
 import { loadAccountCookies, listBoundAccounts } from '../components/Storage.js'
 import { render } from '../components/render.js'
 import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'

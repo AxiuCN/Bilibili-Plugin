@@ -5,7 +5,7 @@ import {
   DEFAULT_USER_AGENT,
   LOGIN_POLL_TIMEOUT_SECONDS,
   LOGIN_POLL_INTERVAL_SECONDS,
-} from './constants.js'
+} from '../components/constants.js'
 
 /**
  * 从 fetch Response 中提取 set-cookie 到 cookies 对象

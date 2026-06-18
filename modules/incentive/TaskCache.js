@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { pluginData } from './constants.js'
+import { pluginData } from '../../components/constants.js'
 
 /** 缓存文件路径 */
 const cacheFile = path.join(pluginData, 'task_awards.json')

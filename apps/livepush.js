@@ -1,8 +1,8 @@
 import common from '../../../lib/common/common.js'
 import { getPluginConfig } from '../components/config.js'
-import LiveBiliApi from '../components/LiveBiliApi.js'
-import LiveSubStore from '../components/LiveSubStore.js'
-import LiveScheduler from '../components/LiveScheduler.js'
+import LiveBiliApi from '../model/LiveApi.js'
+import LiveSubStore from '../modules/livepush/SubStore.js'
+import LiveScheduler from '../modules/livepush/Scheduler.js'
 
 export class BiliLivePush extends plugin {
   constructor() {

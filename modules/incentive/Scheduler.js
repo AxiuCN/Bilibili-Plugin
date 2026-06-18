@@ -1,11 +1,11 @@
-import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from '../components/IncentiveConfig.js'
-import { loadAccountCookies } from '../components/Storage.js'
-import { doClaim, createClient } from '../components/Claimer.js'
-import { getPluginConfig, removeDailyTaskLink } from '../components/config.js'
-import { logTask, logClaim } from '../components/Logger.js'
-import { getTaskInfo, setTaskInfo } from '../components/TaskCache.js'
-import { render } from '../components/render.js'
-import { pluginVersion, yunzaiVersion } from '../components/pluginVersion.js'
+import { loadUserConfig, saveUserConfig, listUserConfigs, MAX_SLOTS } from './Config.js'
+import { loadAccountCookies } from '../../components/Storage.js'
+import { doClaim, createClient } from './Claimer.js'
+import { getPluginConfig, removeDailyTaskLink } from '../../components/config.js'
+import { logTask, logClaim } from '../../components/Logger.js'
+import { getTaskInfo, setTaskInfo } from './TaskCache.js'
+import { render } from '../../components/render.js'
+import { pluginVersion, yunzaiVersion } from '../../components/pluginVersion.js'
 
 /** 默认截止时间（秒），可从配置覆盖 */
 const DEFAULT_DEADLINE = 40

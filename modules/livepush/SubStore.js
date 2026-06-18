@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { pluginData } from './constants.js'
-import LiveBiliApi from './LiveBiliApi.js'
+import { pluginData } from '../../components/constants.js'
+import LiveBiliApi from '../../model/LiveApi.js'
 
 /** 订阅数据文件路径 */
 const DATA_FILE = path.join(pluginData, 'live_bili.json')

@@ -9,7 +9,7 @@ import {
   MISSION_INFO_RETRY_SECONDS,
   MISSION_INFO_RETRY_INTERVAL,
   MIXIN_KEY_ENC_TAB,
-} from './constants.js'
+} from '../components/constants.js'
 
 /** Cookie 失效错误 */
 class BiliCookieInvalidError extends Error {

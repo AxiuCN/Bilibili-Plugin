@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import YAML from 'yaml'
-import { pluginRoot } from './constants.js'
+import { pluginRoot } from '../../components/constants.js'
 
 /** 路径常量 */
 const userCfgDir = path.join(pluginRoot, 'config', 'incentive_config')

@@ -1,7 +1,7 @@
 import moment from 'moment'
-import common from '../../../lib/common/common.js'
-import { getPluginConfig } from './config.js'
-import LiveSubStore from './LiveSubStore.js'
+import common from '../../../../lib/common/common.js'
+import { getPluginConfig } from '../../components/config.js'
+import LiveSubStore from './SubStore.js'
 
 /**
  * 直播推送调度器

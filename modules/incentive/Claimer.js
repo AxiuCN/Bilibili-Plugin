@@ -1,7 +1,7 @@
-import { BiliClient, BiliCookieInvalidError } from './BiliClient.js'
-import { loadAccountCookies, saveAccountCookies } from './Storage.js'
-import { getPluginConfig } from './config.js'
-import { startLogin } from './BiliLogin.js'
+import { BiliClient, BiliCookieInvalidError } from '../../model/BiliClient.js'
+import { loadAccountCookies, saveAccountCookies } from '../../components/Storage.js'
+import { getPluginConfig } from '../../components/config.js'
+import { startLogin } from '../BiliLogin.js'
 
 /**
  * 为指定 QQ 创建 BiliClient 实例
