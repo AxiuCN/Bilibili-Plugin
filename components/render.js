@@ -1,7 +1,7 @@
 import puppeteer from '../../../lib/puppeteer/puppeteer.js'
 import path from 'node:path'
 import fs from 'node:fs'
-import { pluginRoot } from './constants.js'
+import { pluginRoot, pluginName } from './constants.js'
 
 /**
  * 调用 Yunzai puppeteer 模块渲染 HTML 模板为图片
@@ -12,12 +12,10 @@ import { pluginRoot } from './constants.js'
  * @returns {Promise<object>} puppeteer 消息段，可直接传入 e.reply()
  */
 export async function render(app, tpl, data = {}, imgType = 'jpeg') {
-  data._plugin = 'Bilibili-Plugin'
+  data._plugin = pluginName
   // 根据 app 目录深度动态计算 _res_path
-  // 缓存路径: data/html/Bilibili-Plugin/${app}/${tpl}
-  // 需要回退的层数 = 4 + app 中的 '/' 数
   const depth = 4 + app.split('/').length
-  data._res_path = `${'../'.repeat(depth)}plugins/Bilibili-Plugin/resources/`
+  data._res_path = `${'../'.repeat(depth)}plugins/${pluginName}/resources/`
 
   if (imgType === 'png') {
     data.omitBackground = true
@@ -25,11 +23,11 @@ export async function render(app, tpl, data = {}, imgType = 'jpeg') {
   data.imgType = imgType
 
   // 缓存目录
-  const dataDir = path.join(process.cwd(), 'data', 'html', 'Bilibili-Plugin', app, tpl)
+  const dataDir = path.join(process.cwd(), 'data', 'html', pluginName, app, tpl)
   fs.mkdirSync(dataDir, { recursive: true })
 
   data.saveId = data.saveId || data.save_id || tpl
-  data.tplFile = `./plugins/Bilibili-Plugin/resources/${app}/${tpl}.html`
+  data.tplFile = `./plugins/${pluginName}/resources/${app}/${tpl}.html`
   data.pluResPath = data._res_path
   data.pageGotoParams = { waitUntil: 'networkidle0' }
 
@@ -39,8 +37,8 @@ export async function render(app, tpl, data = {}, imgType = 'jpeg') {
 
   // 版权信息
   data.sys = {
-    copyright: `Created By Yunzai-Bot & Bilibili-Plugin`
+    copyright: `Created By Yunzai-Bot & ${pluginName}`
   }
 
-  return await puppeteer.screenshot(`Bilibili-Plugin/${app}/${tpl}`, data)
+  return await puppeteer.screenshot(`${pluginName}/${app}/${tpl}`, data)
 }

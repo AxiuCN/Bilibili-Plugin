@@ -1,21 +1,22 @@
 import { render } from '../components/render.js'
+import { pluginRoot } from '../components/constants.js'
 
-export class BiliHelp extends plugin {
+export class LinkFlowHelp extends plugin {
   constructor() {
     super({
-      name: '[b站插件]帮助',
-      dsc: '查看Bilibili-Plugin帮助',
+      name: '[LinkFlow]帮助',
+      dsc: '查看LinkFlow-Plugin帮助',
       event: 'message',
       priority: 500,
       rule: [
-        { reg: /^#[bB]站帮助$/i, fnc: 'help' },
+        { reg: /^#(linkflow|LinkFlow|b站|B站)帮助$/i, fnc: 'help' },
       ],
     })
   }
 
   async help(e) {
     try {
-      const helpPath = `${process.cwd()}/plugins/Bilibili-Plugin/resources/help/help-cfg.js`
+      const helpPath = `${pluginRoot}/resources/help/help-cfg.js`
       const { helpCfg, helpList } = await import(`file://${helpPath}?t=${Date.now()}`)
 
       const helpGroup = []
@@ -45,18 +46,18 @@ export class BiliHelp extends plugin {
 
       const data = {
         helpCfg: {
-          title: helpCfg.title || 'B站帮助',
-          subTitle: helpCfg.subTitle || 'Bilibili-Plugin 帮助',
+          title: helpCfg.title || 'LinkFlow 帮助',
+          subTitle: helpCfg.subTitle || 'LinkFlow-Plugin',
         },
         helpGroup,
       }
 
       const img = await render('help', 'index', data, 'png')
-      if (!img) return e.reply('[b站插件] 帮助图生成失败，请重试。')
+      if (!img) return e.reply('[LinkFlow] 帮助图生成失败，请重试。')
       return e.reply(img)
     } catch (err) {
-      logger.error('[Bilibili-Plugin] 帮助图生成失败:', err)
-      return e.reply('[b站插件] 帮助图生成失败，请重试。')
+      logger.error('[LinkFlow-Plugin] 帮助图生成失败:', err)
+      return e.reply('[LinkFlow] 帮助图生成失败，请重试。')
     }
   }
 }

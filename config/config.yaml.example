@@ -1,14 +1,96 @@
 # ==============================================================
-# Bilibili-Plugin 配置文件
+# LinkFlow-Plugin v2.0.0 配置文件
 # 请将此文件复制为 config.yaml 并根据需要修改
 # ==============================================================
 
-# B站账号登录（apps/login.js）
+# ---------- 全局设置 ----------
+global:
+  # 总开关：关闭后除 #机器人b站登录 / #B站登录 / #B站状态 外所有功能停用
+  enabled: true
+
+# ---------- B站账号登录 ----------
 login:
   # 扫码登录轮询超时（秒）
   pollTimeout: 180
 
-# B站激励计划（apps/incentive.js）
+# ---------- 链接解析（apps/linkparse.js）----------
+linkparse:
+  # 解析总开关
+  enabled: true
+
+  # ===== 10平台独立开关 =====
+  bilibili:
+    enabled: true
+  douyin:
+    enabled: true
+  tiktok:
+    enabled: true
+  kuaishou:
+    enabled: true
+  weibo:
+    enabled: true
+  xiaohongshu:
+    enabled: true
+  xianyu:
+    enabled: true
+  toutiao:
+    enabled: true
+  xiaoheihe:
+    enabled: true
+  twitter:
+    enabled: true
+
+  # ===== 下载设置 =====
+  download:
+    # 下载总开关
+    enabled: true
+    # 单个视频下载超时（秒）
+    timeout: 600
+    # 最大文件大小（MB），超过不下载
+    maxSize: 100
+    # 允许下载的群号列表（留空=所有群可下载）
+    allowGroups: []
+
+# ---------- 订阅推送 ----------
+subscribe:
+
+  # ===== 动态订阅 =====
+  dynamic:
+    # 动态推送总开关
+    enabled: true
+    # 轮询 cron（秒 分 时 日 月 周），默认每23分钟
+    cron: '0 */23 * * * ?'
+    # 动态时间窗口（秒），超过此时间的动态不推送
+    timeRange: 7200
+
+  # ===== 直播订阅 =====
+  live:
+    # 直播推送总开关
+    enabled: true
+    # 轮询 cron（秒 分 时 日 月 周），默认每分钟第10秒
+    cron: '10 * * * * *'
+    # 是否推送下播消息
+    endPush: true
+
+  # ===== 推送行为 =====
+  push:
+    # 是否使用合并转发推送
+    forward: false
+    # 标题变更时是否再次推送
+    rePush: false
+    # 群间推送间隔（秒），避免多群同时推送风控
+    sleep: 0
+
+# ---------- B站直播推送（旧版兼容，apps/livepush.js）----------
+livePush:
+  enabled: true
+  cron: '10 * * * * *'
+  endPush: true
+  forward: false
+  rePush: false
+  sleep: 0
+
+# ---------- B站激励计划（apps/incentive.js）----------
 incentive:
   # ---------- 全局开关 ----------
   enabled: true
@@ -16,7 +98,7 @@ incentive:
   # ===== 直播激励领取 =====
   # ---------- 直播领取 cron ----------
   liveCron: '0 0 1 * * ?'
-  # ---------- 直播截止时间（秒），0=不限 ----------
+  # ---------- 全局截止时间（秒），0=不限 ----------
   claimDeadline: 40
   # ---------- 直播领取设置 ----------
   claim:
@@ -54,18 +136,3 @@ incentive:
     - ''
     - ''
     - ''
-
-# B站直播推送（apps/livepush.js）
-livePush:
-  # 是否启用
-  enabled: true
-  # cron 表达式（秒 分 时 日 月 周）
-  cron: '10 * * * * *'
-  # 是否推送下播消息
-  endPush: true
-  # 是否使用合并转发推送
-  forward: false
-  # 标题变更时是否再次推送
-  rePush: false
-  # 群间推送间隔（秒）
-  sleep: 0

@@ -1,7 +1,7 @@
 {
-  "name": "Bilibili-Plugin",
-  "version": "1.1.0",
-  "description": "B站综合功能插件，支持UP主激励计划抢奖励、直播推送等功能",
+  "name": "LinkFlow-Plugin",
+  "version": "2.0.0",
+  "description": "流媒体聚合解析+B站综合功能插件，支持10平台链接解析下载、UP主动态/直播订阅推送、B站激励计划抢奖励",
   "author": "阿修Axiu",
   "type": "module",
   "license": "GPL-3.0",
