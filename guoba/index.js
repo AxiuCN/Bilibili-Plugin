@@ -191,7 +191,9 @@ export function supportGuoba() {
           'linkparse.download.enabled': dl.enabled ?? true,
           'linkparse.download.timeout': dl.timeout ?? 600,
           'linkparse.download.maxSize': dl.maxSize ?? 100,
-          // 群白名单 GSubForm
+          // 群白名单
+          'linkparse.whitelist.enabled': whitelist.enabled ?? false,
+          // GSubForm
           'linkparse.download.allowGroups': (whitelist.groups || []).map(g => ({ groupId: String(g) })),
 
           // 订阅
@@ -257,6 +259,12 @@ export function supportGuoba() {
           }
 
           // 5. 保存群白名单到独立文件（兼容嵌套/flat）
+          const whitelistEnabled = getNested(data, 'linkparse.whitelist.enabled')
+          if (whitelistEnabled !== undefined) {
+            const wlEnabled = loadWhitelist()
+            wlEnabled.enabled = whitelistEnabled
+            saveWhitelist(wlEnabled)
+          }
           const allowGroups = getNested(data, 'linkparse.download.allowGroups') || []
           if (allowGroups.length > 0 && typeof allowGroups[0] === 'object') {
             const groupIds = allowGroups.map(g => g.groupId || g.id || '').filter(Boolean)

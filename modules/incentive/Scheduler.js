@@ -500,7 +500,7 @@ function buildGroupNotifyData(gid, members, date) {
  */
 function buildGroupTextFallback(gid, members) {
   const modeLabel = members[0]?.mode === 'watch' ? '看播' : ''
-  const lines = [`[b站插件] 群 ${gid} ${modeLabel}激励领取结果`]
+  const lines = [`[LinkFlow] 群 ${gid} ${modeLabel}激励领取结果`]
   const showStatuses = ['success', 'already_claimed', 'unclaimed', 'reward_type_error', 'incomplete', 'exhausted',
     'suspicious', 'skipped', 'no_qualification', 'logged_out', 'not_yet_time',
     'ended', 'config_error', 'api_error', 'failed']
@@ -615,7 +615,7 @@ function buildPersonalNotifyData(userResult, date) {
  */
 function buildPersonalTextFallback(ur) {
   const modeLabel = ur.mode === 'watch' ? '看播' : ''
-  const lines = [`[b站插件] 每日${modeLabel}激励领取结果`]
+  const lines = [`[LinkFlow] 每日${modeLabel}激励领取结果`]
   const activeSlots = ur.slots.filter(s => s.status !== 'empty')
 
   if (!activeSlots.length) {

@@ -9,11 +9,10 @@
  *   linkparse_download_enabled, linkparse_download_timeout, linkparse_download_maxSize
  *
  * 群白名单独立存储于 config/linkparse_config/whitelist.yaml
- * 锅巴通过 GSubForm 读写该文件，不在 config.yaml 中存储 allowGroups
+ * 锅巴通过 switch + GSubForm 读写该文件，不在 config.yaml 中存储
  */
 import path from 'node:path'
 import { pluginRoot } from '../components/constants.js'
-import { loadWhitelist, saveWhitelist } from '../modules/linkparse/Whitelist.js'
 
 const configPath = path.join(pluginRoot, 'config', 'config.yaml')
 const defaultConfigPath = path.join(pluginRoot, 'defSet', 'config.yaml')
@@ -153,9 +152,18 @@ export function getSchema() {
     // ==================== 群下载白名单 ====================
     { component: 'Divider', label: '群下载白名单', componentProps: { orientation: 'left', plain: true } },
     {
+      field: 'linkparse.whitelist.enabled',
+      label: '启用群白名单',
+      helpMessage: '关闭=所有群可解析下载；开启=仅下方列表中的群可解析下载',
+      bottomHelpMessage: '关闭时 #开启解析 仍可将群加入列表，待启用后生效',
+      component: 'Switch',
+      required: true,
+      componentProps: { defaultValue: false },
+    },
+    {
       field: 'linkparse.download.allowGroups',
-      label: '允许下载的群号',
-      helpMessage: '留空表示所有群均可下载（白名单 enabled=false）',
+      label: '允许的群号列表',
+      helpMessage: '仅白名单启用时生效',
       bottomHelpMessage: '也可通过群内 #开启解析 / #关闭解析 指令管理',
       component: 'GSubForm',
       componentProps: {

@@ -1,6 +1,6 @@
 import { handleMessage } from '../modules/linkparse/index.js'
 import { getPluginConfig } from '../components/config.js'
-import { isGroupAllowed, addGroup, removeGroup } from '../modules/linkparse/Whitelist.js'
+import { isGroupAllowed, addGroup, removeGroup, getGroupList, loadWhitelist } from '../modules/linkparse/Whitelist.js'
 
 export class LinkFlowParse extends plugin {
   constructor() {
@@ -19,6 +19,7 @@ export class LinkFlowParse extends plugin {
 
   /**
    * #开启解析 — 将当前群加入解析白名单
+   * 无论白名单是否启用都加入列表，方便后续启用白名单时直接生效
    */
   async cmdEnable(e) {
     if (!e.isGroup) {
@@ -29,12 +30,17 @@ export class LinkFlowParse extends plugin {
     }
 
     const gid = String(e.group_id)
-    if (isGroupAllowed(gid)) {
-      return this.reply('[LinkFlow] 本群已开启链接解析')
+    const list = getGroupList()
+    if (list.includes(gid)) {
+      return this.reply('[LinkFlow] 本群已在白名单中')
     }
 
     try {
       addGroup(gid)
+      const wl = loadWhitelist()
+      if (!wl.enabled) {
+        return this.reply('[LinkFlow] 本群已加入白名单（当前白名单未启用，所有群均可解析。启用后仅限名单内群）')
+      }
       return this.reply('[LinkFlow] 本群已开启链接解析')
     } catch (err) {
       logger?.error('[LinkFlow] 添加群白名单失败:', err)
@@ -54,12 +60,17 @@ export class LinkFlowParse extends plugin {
     }
 
     const gid = String(e.group_id)
-    if (!isGroupAllowed(gid)) {
-      return this.reply('[LinkFlow] 本群未开启链接解析')
+    const list = getGroupList()
+    if (!list.includes(gid)) {
+      return this.reply('[LinkFlow] 本群不在白名单中，无需关闭')
     }
 
     try {
       removeGroup(gid)
+      const wl = loadWhitelist()
+      if (!wl.enabled) {
+        return this.reply('[LinkFlow] 本群已从白名单移除（当前白名单未启用，所有群仍可解析）')
+      }
       return this.reply('[LinkFlow] 本群已关闭链接解析')
     } catch (err) {
       logger?.error('[LinkFlow] 移除群白名单失败:', err)
