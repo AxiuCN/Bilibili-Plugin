@@ -45,6 +45,7 @@ function createDefaultWhitelist() {
 
 /**
  * 写入白名单（文本级更新，保留注释）
+ * 空列表用 inline groups: []，有内容用 block 格式
  * @param {{enabled: boolean, groups: string[]}} data
  */
 function saveWhitelist(data) {
@@ -70,10 +71,26 @@ function saveWhitelist(data) {
       }
     }
 
-    const before = groupsLineIdx >= 0 ? lines.slice(0, groupsLineIdx + 1) : [...lines, 'groups:']
-    const rest = groupsLineIdx >= 0 ? lines.slice(groupsLineIdx + 1).filter(l => !/^\s*-\s*"/.test(l) && !/^\s*-\s*'/.test(l)) : []
-    const groupsYaml = (data.groups || []).map(g => `  - '${g}'`)
-    const result = [...before, ...groupsYaml, ...rest]
+    // 跳过旧列表项（以 - 开头的行，以及紧接 groups: 后面的纯空行/注释行）
+    let restStart = groupsLineIdx >= 0 ? groupsLineIdx + 1 : lines.length
+    while (restStart < lines.length) {
+      const t = lines[restStart].trim()
+      if (t === '' || t.startsWith('-')) {
+        restStart++
+      } else {
+        break
+      }
+    }
+
+    const before = groupsLineIdx >= 0 ? lines.slice(0, groupsLineIdx) : lines
+    const rest = lines.slice(restStart)
+    const groups = data.groups || []
+
+    const result = groups.length === 0
+      // 空列表用 inline 格式，避免 yaml 歧义
+      ? [...before, 'groups: []', ...rest]
+      // 有内容用 block 格式
+      : [...before, 'groups:', ...groups.map(g => `  - '${g}'`), ...rest]
 
     fs.writeFileSync(filePath, result.join('\n'), 'utf8')
   } catch (e) {
