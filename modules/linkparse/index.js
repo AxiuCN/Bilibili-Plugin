@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { extractPlatformUrls } from './platforms.js'
 import { resolveUrl } from './resolvers.js'
 import { mediaParser } from '../../model/MediaParser.js'
@@ -125,13 +126,15 @@ async function sendResult(e, result, maxSizeMb) {
   // media_parser 返回的 file_paths 列表
   const filePaths = result.file_paths || result.filePaths || []
 
+  const videoExts = new Set(['.mp4', '.mkv', '.flv', '.mov', '.m4v', '.avi', '.webm', '.ts'])
+
   for (const fp of filePaths) {
     if (!fp) continue
     try {
-      const { default: fs } = await import('node:fs')
-      if (!fs.existsSync(fp)) continue
+      const fs = await import('node:fs')
+      if (!fs.default.existsSync(fp)) continue
 
-      const stat = fs.statSync(fp)
+      const stat = fs.default.statSync(fp)
       const sizeMb = stat.size / (1024 * 1024)
 
       if (sizeMb > maxSizeMb) {
@@ -139,11 +142,20 @@ async function sendResult(e, result, maxSizeMb) {
         continue
       }
 
-      const fileMsg = segment.file(fp)
+      // 确保文件有后缀名，缺省补 .mp4
+      let finalPath = fp
+      if (!path.extname(fp)) {
+        finalPath = fp + '.mp4'
+        try { fs.default.renameSync(fp, finalPath) } catch {}
+      }
+
+      const isVideo = videoExts.has(path.extname(finalPath).toLowerCase())
+      const fileMsg = isVideo ? segment.video('file://' + finalPath) : segment.file(finalPath)
+
       if (sizeMb < 30) {
         e.reply(fileMsg)
       } else {
-        e.reply(`[LinkFlow] ${result.title || '视频'} (${sizeMb.toFixed(1)}MB) 已下载: ${fp}`)
+        e.reply(`[LinkFlow] ${result.title || '视频'} (${sizeMb.toFixed(1)}MB) 已下载: ${finalPath}`)
       }
     } catch (err) {
       logger?.error(`[LinkFlow] 发送文件失败: ${err.message}`)

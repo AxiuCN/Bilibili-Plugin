@@ -1,5 +1,6 @@
 import path from 'node:path'
 import fs from 'node:fs'
+import { spawn } from 'node:child_process'
 import { runSpawn, exists, ensureDir } from '../components/utils.js'
 import { bbdownPath, aria2cPath, downloadCacheDir, botAccountsDir } from '../components/constants.js'
 import { loadBotCookies, formatCookiesText } from './bilibili/auth.js'

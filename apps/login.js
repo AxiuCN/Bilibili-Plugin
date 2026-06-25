@@ -72,7 +72,7 @@ export class LinkFlowLogin extends plugin {
           // BBDown 生成 qrcode.png，直接发送图片
           await this.reply([
             segment.at(e.user_id),
-            segment.text('\n[LinkFlow] 请用 B站 APP 扫码登录机器人账号\n'),
+            '\n[LinkFlow] 请用 B站 APP 扫码登录机器人账号\n',
             segment.image('file://' + qrPath),
           ], false, { recallMsg: 30 })
         },
