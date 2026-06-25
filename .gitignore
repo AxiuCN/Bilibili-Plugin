@@ -16,7 +16,7 @@ tool/media_parser/.bili_cookies.txt
 
 # 用户本地配置（仅 .example 可上传）
 config/*.yaml
-config/incentive_config/*.yaml
+config/*/*.yaml
 
 # 依赖
 node_modules/

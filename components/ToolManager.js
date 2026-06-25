@@ -20,8 +20,13 @@ import { runSpawn, exists, ensureDir } from './utils.js'
 /**
  * ToolManager — 统一管理外部工具（bbdown / ffmpeg / aria2 / media_parser）
  *
- * 二进制工具（bbdown/ffmpeg/aria2）通过 GitHub Releases API 下载
- * media_parser 通过 Python venv + pip 安装依赖
+ * 二进制工具（bbdown/ffmpeg/aria2）通过 GitHub Releases API 下载，.version 文件追踪版本
+ * media_parser 通过 Python venv + pip 安装依赖，.fingerprint 文件追踪变更
+ *
+ * 更新策略：
+ *   autoInstall + checkUpdate → 对比 GitHub 最新 tag，有新版则自动下载
+ *   autoInstall only           → 仅首次安装，已有则跳过
+ *   autoInstall = false        → 全部跳过
  */
 class ToolManager {
   constructor() {
@@ -29,23 +34,26 @@ class ToolManager {
   }
 
   /**
-   * 检查并安装所有已启用的工具
+   * 检查并安装/更新所有已启用的工具
    * @param {object} [toolCfg] - tool 配置段
+   * @param {object} [opts]
+   * @param {boolean} [opts.checkUpdate] - 是否检查更新（默认 false，仅首次安装）
    */
-  async ensureAll(toolCfg = {}) {
+  async ensureAll(toolCfg = {}, opts = {}) {
     const autoInstall = toolCfg.autoInstall !== false
+    const checkUpdate = opts.checkUpdate === true
 
     if (toolCfg.bbdown?.enabled !== false) {
-      await this._ensureBinary('bbdown', autoInstall)
+      await this._ensureBinary('bbdown', autoInstall, checkUpdate)
     }
     if (toolCfg.ffmpeg?.enabled !== false) {
-      await this._ensureBinary('ffmpeg', autoInstall)
+      await this._ensureBinary('ffmpeg', autoInstall, checkUpdate)
     }
     if (toolCfg.aria2?.enabled !== false) {
-      await this._ensureBinary('aria2', autoInstall)
+      await this._ensureBinary('aria2', autoInstall, checkUpdate)
     }
     if (toolCfg.mediaParser?.enabled !== false) {
-      await this._ensureMediaParser(autoInstall)
+      await this._ensureMediaParser(autoInstall, checkUpdate)
     }
   }
 
@@ -76,26 +84,37 @@ class ToolManager {
    * 确保二进制工具已安装
    * @param {string} name - bbdown / ffmpeg / aria2
    * @param {boolean} autoInstall
+   * @param {boolean} checkUpdate - 是否检查 GitHub 更新
    */
-  async _ensureBinary(name, autoInstall) {
+  async _ensureBinary(name, autoInstall, checkUpdate) {
     const binPath = this.getToolPath(name)
-    if (binPath) {
-      this._installed.set(name, true)
+
+    if (!binPath) {
+      // 不存在 → 安装
+      if (!autoInstall) {
+        logger?.info(`[LinkFlow] ${name} 未安装且 autoInstall 关闭，跳过`)
+        return
+      }
+      return await this._installBinary(name)
+    }
+
+    // 已安装 → 标记
+    this._installed.set(name, true)
+
+    if (!checkUpdate) return
+
+    // 检查更新
+    const updateInfo = await this._checkBinaryUpdate(name)
+    if (!updateInfo.needsUpdate) {
+      logger?.info(`[LinkFlow] ${name} 已是最新: ${updateInfo.currentTag}`)
       return
     }
 
-    if (!autoInstall) {
-      logger?.info(`[LinkFlow] ${name} 未安装且 autoInstall 关闭，跳过`)
-      return
-    }
-
-    logger?.info(`[LinkFlow] 正在安装 ${name} ...`)
+    logger?.info(`[LinkFlow] ${name} 有更新: ${updateInfo.currentTag} → ${updateInfo.latestTag}`)
     try {
-      await this._downloadFromGitHub(name)
-      this._installed.set(name, true)
-      logger?.info(`[LinkFlow] ${name} 安装完成`)
+      await this._installBinary(name)
     } catch (e) {
-      logger?.error(`[LinkFlow] ${name} 安装失败:`, e.message)
+      logger?.error(`[LinkFlow] ${name} 更新失败:`, e.message)
       // ffmpeg 尝试镜像兜底
       if (name === 'ffmpeg') {
         try {
@@ -110,8 +129,90 @@ class ToolManager {
   }
 
   /**
+   * 安装单个二进制工具（内部调用 _downloadFromGitHub）
+   * @param {string} name
+   */
+  async _installBinary(name) {
+    logger?.info(`[LinkFlow] 正在安装 ${name} ...`)
+    try {
+      const tag = await this._downloadFromGitHub(name)
+      this._writeVersionFile(name, tag)
+      this._installed.set(name, true)
+      logger?.info(`[LinkFlow] ${name} 安装完成 (${tag})`)
+    } catch (e) {
+      logger?.error(`[LinkFlow] ${name} 安装失败:`, e.message)
+      if (name === 'ffmpeg') {
+        try {
+          await this._downloadFfmpegMirror()
+          this._writeVersionFile(name, 'mirror')
+          this._installed.set(name, true)
+          logger?.info(`[LinkFlow] ffmpeg 镜像下载完成`)
+        } catch (e2) {
+          logger?.error(`[LinkFlow] ffmpeg 镜像下载也失败:`, e2.message)
+        }
+      } else {
+        throw e
+      }
+    }
+  }
+
+  /**
+   * 检查二进制工具是否需要更新
+   * @param {string} name
+   * @returns {Promise<{needsUpdate: boolean, currentTag: string, latestTag: string}>}
+   */
+  async _checkBinaryUpdate(name) {
+    const repoInfo = TOOL_REPOS[name]
+    if (!repoInfo) return { needsUpdate: false, currentTag: 'unknown', latestTag: 'unknown' }
+
+    const currentTag = this._readVersionFile(name) || 'none'
+    const release = await this._fetchGitHubRelease(repoInfo.repo)
+    const latestTag = release?.tag_name || 'unknown'
+
+    return {
+      needsUpdate: currentTag !== latestTag && latestTag !== 'unknown',
+      currentTag,
+      latestTag,
+    }
+  }
+
+  /**
+   * 读取 .version 文件中的 tag
+   * @param {string} name
+   * @returns {string|null}
+   */
+  _readVersionFile(name) {
+    const targetMap = { bbdown: bbdownPath, ffmpeg: ffmpegPath, aria2: aria2cPath }
+    const binPath = targetMap[name]
+    if (!binPath) return null
+    const versionFile = path.join(path.dirname(binPath), '.version')
+    try {
+      if (fs.existsSync(versionFile)) {
+        return fs.readFileSync(versionFile, 'utf8').trim()
+      }
+    } catch {}
+    return null
+  }
+
+  /**
+   * 写入 .version 文件
+   * @param {string} name
+   * @param {string} tag
+   */
+  _writeVersionFile(name, tag) {
+    const targetMap = { bbdown: bbdownPath, ffmpeg: ffmpegPath, aria2: aria2cPath }
+    const binPath = targetMap[name]
+    if (!binPath) return
+    const versionFile = path.join(path.dirname(binPath), '.version')
+    try {
+      fs.writeFileSync(versionFile, tag, 'utf8')
+    } catch {}
+  }
+
+  /**
    * 从 GitHub Releases 下载并安装工具
    * @param {string} name
+   * @returns {Promise<string>} release tag
    */
   async _downloadFromGitHub(name) {
     const repoInfo = TOOL_REPOS[name]
@@ -170,6 +271,8 @@ class ToolManager {
     // 6. 清理
     try { fs.unlinkSync(archivePath) } catch {}
     this._cleanupExtracted(destDir, repoInfo.command)
+
+    return release.tag_name
   }
 
   /**
@@ -205,8 +308,9 @@ class ToolManager {
   /**
    * 确保 media_parser Python 环境就绪
    * @param {boolean} autoInstall
+   * @param {boolean} checkUpdate
    */
-  async _ensureMediaParser(autoInstall) {
+  async _ensureMediaParser(autoInstall, checkUpdate) {
     const serverPy = path.join(mediaParserDir, 'server.py')
     const submoduleDir = path.join(mediaParserDir, 'astrbot_plugin_media_parser')
 
@@ -230,32 +334,33 @@ class ToolManager {
     }
 
     // 检查是否需要安装/更新
-    const needsInstall = await this._mediaParserNeedsInstall()
+    const needsInstall = checkUpdate
+      ? true   // 强制重检指纹
+      : await this._mediaParserNeedsInstall()
+
     if (!needsInstall) {
       this._installed.set('mediaParser', true)
       return
     }
 
-    logger?.info('[LinkFlow] 正在安装 media_parser Python 环境 ...')
+    const action = !fs.existsSync(this._getVenvPython()) ? '安装' : '更新'
+    logger?.info(`[LinkFlow] 正在${action} media_parser Python 环境 ...`)
     try {
       await this._setupMediaParserVenv()
       this._installed.set('mediaParser', true)
-      logger?.info('[LinkFlow] media_parser Python 环境安装完成')
+      logger?.info(`[LinkFlow] media_parser Python 环境${action}完成`)
     } catch (e) {
-      logger?.error('[LinkFlow] media_parser 安装失败:', e.message)
+      logger?.error(`[LinkFlow] media_parser ${action}失败:`, e.message)
       this._installed.set('mediaParser', false)
     }
   }
 
-  /**
-   * 检查 media_parser 是否需要安装/更新
-   * @returns {Promise<boolean>}
-   */
+  // --- media_parser helper methods unchanged ---
+
   async _mediaParserNeedsInstall() {
     const venvPython = this._getVenvPython()
     if (!fs.existsSync(venvPython)) return true
 
-    // 指纹校验
     const fingerprint = await this._getMediaParserFingerprint()
     const fingerprintFile = path.join(mediaParserDir, '.fingerprint')
     if (fs.existsSync(fingerprintFile)) {
@@ -267,10 +372,6 @@ class ToolManager {
     return true
   }
 
-  /**
-   * 计算 media_parser 依赖指纹
-   * @returns {Promise<string>}
-   */
   async _getMediaParserFingerprint() {
     const reqFile = path.join(mediaParserDir, 'astrbot_plugin_media_parser', 'requirements.txt')
     let reqHash = ''
@@ -278,7 +379,6 @@ class ToolManager {
       reqHash = crypto.createHash('sha256').update(fs.readFileSync(reqFile)).digest('hex').slice(0, 16)
     }
 
-    // git commit hash
     let gitHash = ''
     try {
       const headFile = path.join(mediaParserDir, 'astrbot_plugin_media_parser', '.git', 'HEAD')
@@ -298,23 +398,18 @@ class ToolManager {
     return `${reqHash}-${gitHash}`
   }
 
-  /**
-   * 创建 venv 并安装依赖
-   */
   async _setupMediaParserVenv() {
     const pythonPath = this._findSystemPython()
     if (!pythonPath) throw new Error('未找到系统 Python，请安装 Python 3.9+')
 
     ensureDir(mediaParserDir)
 
-    // 创建 venv
     logger?.info('[LinkFlow] 创建 Python venv ...')
     await runSpawn(pythonPath, ['-m', 'venv', mediaParserVenvDir], {
       timeout: 60000,
       rejectOnNonZero: true,
     })
 
-    // pip install
     const venvPip = this._getVenvPip()
     const reqFile = path.join(mediaParserDir, 'astrbot_plugin_media_parser', 'requirements.txt')
 
@@ -326,35 +421,22 @@ class ToolManager {
       })
     }
 
-    // 写指纹
     const fingerprint = await this._getMediaParserFingerprint()
     fs.writeFileSync(path.join(mediaParserDir, '.fingerprint'), fingerprint, 'utf8')
   }
 
-  /**
-   * 获取 venv 中的 Python 路径
-   * @returns {string}
-   */
   _getVenvPython() {
     return process.platform === 'win32'
       ? path.join(mediaParserVenvDir, 'Scripts', 'python.exe')
       : path.join(mediaParserVenvDir, 'bin', 'python')
   }
 
-  /**
-   * 获取 venv 中的 pip 路径
-   * @returns {string}
-   */
   _getVenvPip() {
     return process.platform === 'win32'
       ? path.join(mediaParserVenvDir, 'Scripts', 'pip.exe')
       : path.join(mediaParserVenvDir, 'bin', 'pip')
   }
 
-  /**
-   * 查找系统 Python
-   * @returns {string|null}
-   */
   _findSystemPython() {
     const candidates = process.platform === 'win32'
       ? ['python', 'python3', 'py']
@@ -371,11 +453,6 @@ class ToolManager {
 
   // ==================== GitHub Releases ====================
 
-  /**
-   * 从 GitHub API 获取最新 Release
-   * @param {string} repo - 如 'nilaoda/BBDown'
-   * @returns {Promise<object|null>}
-   */
   async _fetchGitHubRelease(repo) {
     for (const base of TOOL_GITHUB_API_BASES) {
       try {
@@ -391,34 +468,19 @@ class ToolManager {
     return null
   }
 
-  /**
-   * 从 Release Assets 中选择最佳匹配
-   * @param {Array} assets
-   * @param {object} patterns - { include, exclude }
-   * @returns {object|null}
-   */
   _pickAsset(assets, patterns) {
     const { include, exclude } = patterns
-    // 精确匹配：先按 include 正则打分
     const matched = assets.filter(a => include.test(a.name))
     if (!matched.length) return null
 
-    // 排除
     const filtered = exclude
       ? matched.filter(a => !exclude.test(a.name))
       : matched
 
-    // 优先选最小的（通常不含多余文件）
     filtered.sort((a, b) => a.size - b.size)
     return filtered[0] || matched[0]
   }
 
-  /**
-   * 尝试多个 URL 下载，首个成功即返回
-   * @param {string[]} urls
-   * @param {string} dest
-   * @param {string} label
-   */
   async _tryDownloadUrls(urls, dest, label) {
     for (const url of urls) {
       try {
@@ -431,11 +493,6 @@ class ToolManager {
     throw new Error(`${label} 所有下载源均失败`)
   }
 
-  /**
-   * 下载文件到本地
-   * @param {string} url
-   * @param {string} dest
-   */
   async _downloadFile(url, dest) {
     const { default: fetch } = await import('node-fetch')
     const res = await fetch(url, {
@@ -448,12 +505,6 @@ class ToolManager {
     fs.writeFileSync(dest, buffer)
   }
 
-  /**
-   * 解压归档文件
-   * @param {string} archivePath
-   * @param {string} destDir
-   * @param {string} name - 工具名（日志用）
-   */
   async _extractArchive(archivePath, destDir, name) {
     const ext = archivePath.toLowerCase()
     logger?.info(`[LinkFlow] 解压 ${name} ...`)
@@ -476,21 +527,13 @@ class ToolManager {
     }
   }
 
-  /**
-   * 递归查找二进制文件
-   * @param {string} dir
-   * @param {string} binaryName - 如 'BBDown.exe'
-   * @returns {string|null}
-   */
   _findBinary(dir, binaryName) {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
-    // 先在当前目录找
     for (const entry of entries) {
       if (entry.isFile() && entry.name === binaryName) {
         return path.join(dir, entry.name)
       }
     }
-    // 递归子目录
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const found = this._findBinary(path.join(dir, entry.name), binaryName)
@@ -500,11 +543,6 @@ class ToolManager {
     return null
   }
 
-  /**
-   * 清理解压产生的多余文件（保留二进制）
-   * @param {string} dir
-   * @param {string} binaryName
-   */
   _cleanupExtracted(dir, binaryName) {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
@@ -514,7 +552,6 @@ class ToolManager {
           try { fs.unlinkSync(fullPath) } catch {}
         }
       } else if (entry.isDirectory()) {
-        // 递归清理子目录
         const subBinary = this._findBinary(fullPath, binaryName)
         if (subBinary && subBinary !== path.join(dir, binaryName)) {
           try { fs.copyFileSync(subBinary, path.join(dir, binaryName)) } catch {}

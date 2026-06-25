@@ -148,7 +148,7 @@ export class LinkFlowLogin extends plugin {
     await this.reply('[LinkFlow] 正在检查工具环境 ...')
 
     try {
-      await toolManager.ensureAll(toolCfg)
+      await toolManager.ensureAll(toolCfg, { checkUpdate: true })
 
       const labels = { bbdown: 'BBDown', ffmpeg: 'ffmpeg', aria2: 'aria2', mediaParser: 'media_parser' }
       const status = Object.entries(labels).map(
