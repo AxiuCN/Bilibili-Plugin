@@ -45,6 +45,9 @@ export class LinkFlowLogin extends plugin {
    *
    * BBDown 负责生码/扫码，成功后自动提取 SESSDATA 等字段存入
    * data/bot_accounts/bilibili.json，保留机器人账号体系供激励/下载等模块使用。
+   *
+   * 采用 fire-and-forget：函数立即返回不阻塞，
+   * 二维码生成后通过 HTML 渲染发送，登录完成后异步推送成功/失败消息。
    */
   async cmdBotLogin(e) {
     if (!e.isMaster) {
@@ -63,29 +66,46 @@ export class LinkFlowLogin extends plugin {
       return this.reply('[LinkFlow] BBDown 未安装，请先发送 #初始化工具环境')
     }
 
-    try {
-      const loginTimeout = getPollTimeoutSeconds()
-      // 使用 BBDown 扫码登录
-      const success = await bbdownLogin(e, {
-        timeout: loginTimeout * 1000,  // 秒 → 毫秒
-        onQR: async (qrPath) => {
-          // BBDown 生成 qrcode.png，直接发送图片
+    const loginTimeout = getPollTimeoutSeconds()
+
+    // fire-and-forget: 不 await，登录在后台运行
+    bbdownLogin(e, {
+      timeout: loginTimeout * 1000,
+      onQR: async (qrPath) => {
+        try {
+          // 读二维码文件 → base64 → HTML 渲染
+          const qrBuffer = fs.readFileSync(qrPath)
+          const qrBase64 = qrBuffer.toString('base64')
+          const imgSrc = `data:image/png;base64,${qrBase64}`
+
+          const img = await render('qrCode', 'index', {
+            url: '',
+            imgSrc,
+            qq: e.user_id,
+            version: pluginVersion,
+            yunzaiVersion,
+          }, 'png')
+
+          await this.reply([segment.at(e.user_id), img], false, { recallMsg: 30 })
+        } catch (err) {
+          logger?.error(`[LinkFlow] 发送登录二维码失败: ${err.message}`)
+          // 降级：直接发图片
           await this.reply([
             segment.at(e.user_id),
             '\n[LinkFlow] 请用 B站 APP 扫码登录机器人账号\n',
             segment.image('file://' + qrPath),
           ], false, { recallMsg: 30 })
-        },
-      })
-
+        }
+      },
+    }).then(success => {
       if (success) {
-        return this.reply('[LinkFlow] 机器人公共 B站账号绑定成功 ✓')
+        this.reply('[LinkFlow] 机器人公共 B站账号绑定成功 ✓')
       } else {
-        return this.reply('[LinkFlow] 机器人登录失败')
+        this.reply('[LinkFlow] 机器人登录失败')
       }
-    } catch (err) {
-      return this.reply(`[LinkFlow] 机器人登录失败: ${err.message}`)
-    }
+    }).catch(err => {
+      this.reply(`[LinkFlow] 机器人登录失败: ${err.message}`)
+    })
   }
 
   /**

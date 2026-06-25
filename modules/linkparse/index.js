@@ -85,6 +85,8 @@ async function tryDownload(e, url, platformKey, meta) {
   const maxSizeMb = dlCfg.maxSize || DOWNLOAD_DEFAULT_MAX_SIZE_MB
   const timeout = dlCfg.timeout ? dlCfg.timeout * 1000 : DOWNLOAD_DEFAULT_TIMEOUT_MS
 
+  logger?.info(`[LinkFlow] 下载决策: platform=${platformKey}, maxSizeMb=${maxSizeMb}, timeout=${timeout}ms`)
+
   try {
     let result = null
 

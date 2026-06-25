@@ -108,6 +108,7 @@ class MediaParser {
   async parse(text, opts = {}) {
     try {
       const cookie = opts.cookie || this._getBotCookieString()
+      logger?.info(`[LinkFlow] media_parser parse 请求: text长度=${text?.length || 0}, cookie=${cookie ? '有' : '无'}`)
       const res = await fetch(`http://127.0.0.1:${this._port}/parse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,11 +118,13 @@ class MediaParser {
 
       if (!res.ok) {
         const err = await res.text()
-        logger?.error(`[LinkFlow] media_parser parse 失败: ${err}`)
+        logger?.error(`[LinkFlow] media_parser parse 失败 (status=${res.status}): ${err}`)
         return null
       }
 
-      return await res.json()
+      const result = await res.json()
+      logger?.info(`[LinkFlow] media_parser parse 成功: 解析到 ${Array.isArray(result) ? result.length : 0} 条结果`)
+      return result
     } catch (e) {
       logger?.error(`[LinkFlow] media_parser parse 请求失败: ${e.message}`)
       return null
@@ -139,6 +142,9 @@ class MediaParser {
   async download(metadata, opts = {}) {
     try {
       const cookie = opts.cookie || this._getBotCookieString()
+      const title = metadata?.title || metadata?.url || '未知'
+      const platform = metadata?.platform || '未知平台'
+      logger?.info(`[LinkFlow] media_parser download 请求: title="${title}", platform=${platform}, maxSizeMb=${opts.maxSizeMb || 0}`)
       const res = await fetch(`http://127.0.0.1:${this._port}/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,11 +158,15 @@ class MediaParser {
 
       if (!res.ok) {
         const err = await res.text()
-        logger?.error(`[LinkFlow] media_parser download 失败: ${err}`)
+        logger?.error(`[LinkFlow] media_parser download 失败 (status=${res.status}): ${err}`)
         return null
       }
 
-      return await res.json()
+      const result = await res.json()
+      const fps = result?.file_paths || []
+      const modes = result?.video_modes || []
+      logger?.info(`[LinkFlow] media_parser download 成功: file_paths=${fps.length}个, video_modes=[${modes.join(',')}]`)
+      return result
     } catch (e) {
       logger?.error(`[LinkFlow] media_parser download 请求失败: ${e.message}`)
       return null
@@ -200,16 +210,16 @@ class MediaParser {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
-    // 捕获输出到日志
-    const logStream = fs.createWriteStream(
-      path.join(mediaParserDir, 'server-stdout.log'),
-      { flags: 'a' }
-    )
+    // 捕获输出到文件 + logger
+    const logPath = path.join(mediaParserDir, 'server-stdout.log')
+    const logStream = fs.createWriteStream(logPath, { flags: 'a' })
     this._process.stdout?.on('data', d => {
       logStream.write(d)
+      logger?.info(`[MediaParser-stdout] ${d.toString().trim()}`)
     })
     this._process.stderr?.on('data', d => {
       logStream.write(d)
+      logger?.warn(`[MediaParser-stderr] ${d.toString().trim()}`)
     })
 
     // 进程退出处理
