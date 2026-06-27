@@ -301,9 +301,20 @@ def _make_session(cookie_str=""):
 
 
 def _serialize_metadata(meta):
-    """将 MediaMetadata 转为可 JSON 化的 dict"""
+    """将 MediaMetadata 转为可 JSON 化的 dict
+
+    MediaMetadata 是 TypedDict（运行时就是 dict），但内部值可能含
+    非 JSON 原生类型（如 set、bytes、Path 等），必须递归 _json_safe。
+    之前的版本对 dict 类型直接返回原对象，导致 video_urls 等字段
+    在 json.dumps 时被丢弃或序列化失败。
+    """
     if isinstance(meta, dict):
-        return meta
+        result = {}
+        for k, v in meta.items():
+            if k.startswith("_"):
+                continue
+            result[k] = _json_safe(v)
+        return result
 
     # 尝试转为 dict（MediaMetadata 可能是 dataclass）
     if hasattr(meta, "__dict__"):
@@ -320,7 +331,7 @@ def _serialize_metadata(meta):
 def _serialize_download_result(result):
     """将下载结果转为可 JSON 化的 dict"""
     if isinstance(result, dict):
-        return {k: _json_safe(v) for k, v in result.items()}
+        return _json_safe(result)
     if hasattr(result, "__dict__"):
         return {k: _json_safe(v) for k, v in result.__dict__.items() if not k.startswith("_")}
     return {"raw": str(result)}
